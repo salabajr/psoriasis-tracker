@@ -74,7 +74,9 @@
   .pasi { font: 600 14px var(--mono); }
 
   /* ---- transcript ---- */
-  #feed { display: flex; flex-direction: column; gap: 10px; }
+  #feed { display: flex; flex-direction: column; gap: 10px;
+          max-height: 62vh; overflow-y: auto; padding-right: 6px;
+          scroll-behavior: smooth; overscroll-behavior: contain; }
   .evt { max-width: 78%; border-radius: 10px; padding: 10px 14px; border: 1px solid; }
   .evt .who { font-size: 11px; font-weight: 700; text-transform: uppercase;
               letter-spacing: 0.07em; margin-bottom: 3px; }
@@ -251,7 +253,11 @@ function addEvent(e) {
     $("fill").classList.add(e.text === "CONFIRMED_WORSENING" ? "done-bad" :
                             e.text === "STABLE" ? "done-stable" : "done-good");
     $("runbtn").disabled = false; $("replaybtn").disabled = false;
-    autoscroll(); return;
+    autoscroll();
+    // One deliberate page scroll at the end: bring the verdict card into view
+    // once /state has rendered it (~2s poll).
+    setTimeout(() => $("verdict").scrollIntoView({ behavior: "smooth", block: "start" }), 2300);
+    return;
   }
   if (e.type === "error") {
     $("runerr").textContent = e.text;
@@ -283,7 +289,12 @@ function addEvent(e) {
   autoscroll();
 }
 function autoscroll() {
-  window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+  // Follow the transcript inside its own panel — never move the page. Only
+  // stick to the bottom if the user is already there; if they scrolled up to
+  // read, leave them alone.
+  const f = $("feed");
+  const nearBottom = f.scrollHeight - f.scrollTop - f.clientHeight < 120;
+  if (nearBottom) f.scrollTop = f.scrollHeight;
 }
 
 /* ---------- verdict + detail panels from /state ---------- */
