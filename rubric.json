@@ -1,0 +1,27 @@
+[
+  {
+    "id": 1,
+    "text": "Objective severity trend: PASI, BSA, and/or IGA show a directional change across visits.",
+    "how": "Compare PASI/BSA/IGA values across at least two dated encounters. Worsening requires a clinically meaningful increase (e.g., PASI rise >= 2 points or IGA step-up) documented with verbatim chart quotes."
+  },
+  {
+    "id": 2,
+    "text": "Symptom trajectory, including nail and joint involvement, shows a directional change.",
+    "how": "Look for new or progressing symptoms in any note type (derm, nursing, portal): new plaque sites, scalp involvement, nail findings (e.g., pitting, onycholysis), joint pain. Absence of mention is not evidence of absence; cite verbatim quotes with dates."
+  },
+  {
+    "id": 3,
+    "text": "DLQI (Dermatology Life Quality Index) trend shows a directional change.",
+    "how": "Compare DLQI scores across dated encounters. Worsening requires an increase of >= 4 points or a sustained upward trend, documented with verbatim quotes."
+  },
+  {
+    "id": 4,
+    "text": "Treatment-response adequacy: the current regimen has been given an adequate, adherent trial.",
+    "how": "Identify the current regimen, its start date, and dosing schedule. Verify from the chart that doses were taken as scheduled for long enough to judge response. Missed doses, therapy gaps, or a trial too short to assess make adequacy unassessable."
+  },
+  {
+    "id": 5,
+    "text": "Worsening cannot be attributed to disease if a confounder (non-adherence, infection, steroid-withdrawal or seasonal flare) is unaddressed.",
+    "how": "Actively search the chart for each confounder class: missed/stopped medications, intercurrent infection, recent steroid taper or withdrawal, seasonal pattern. A confounder is 'addressed' only if the chart either excludes it or establishes that worsening preceded it. If any confounder is present and unaddressed, this item cannot pass."
+  }
+]

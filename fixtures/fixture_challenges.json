@@ -1,0 +1,8 @@
+[
+  {
+    "criterion_id": 5,
+    "challenge_reason": "Packet item 1 asserts objective worsening, while packet item 5's own evidence documents two missed adalimumab doses with no exclusion of non-adherence as the cause of the decline. The packet attributes worsening to disease while an unexcluded confounder sits in its own evidence — internally inconsistent under the rubric.",
+    "rubric_quote": "Worsening cannot be attributed to disease if a confounder (non-adherence, infection, steroid-withdrawal or seasonal flare) is unaddressed.",
+    "what_would_satisfy": "Packet evidence that flare onset predates the first missed dose (2026-06-07), or a chart statement excluding non-adherence as the driver of the worsening."
+  }
+]

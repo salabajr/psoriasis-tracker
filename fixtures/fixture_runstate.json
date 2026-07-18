@@ -1,0 +1,83 @@
+{
+  "patient_id": "patient1",
+  "round": 2,
+  "terminal_state": "INSUFFICIENT_EVIDENCE",
+  "packet": [
+    {
+      "criterion_id": 1,
+      "criterion_text": "Objective severity trend: PASI, BSA, and/or IGA show a directional change across visits.",
+      "status": "worsening",
+      "evidence": [
+        {"doc_id": "visit1_derm_note", "quote": "PASI 6.1, BSA 8%, IGA 2", "date": "2026-02-02"},
+        {"doc_id": "visit3_derm_note", "quote": "PASI 14.2, BSA 15%, IGA 3", "date": "2026-05-10"},
+        {"doc_id": "visit4_derm_note", "quote": "PASI 16.8, BSA 18%, IGA 3", "date": "2026-06-29"}
+      ],
+      "reasoning": "PASI rose from 6.1 at baseline (2026-02-02) to 14.2 at V3 (2026-05-10) and 16.8 at V4 (2026-06-29); BSA rose 8% to 18% and IGA stepped from 2 to 3 over the same interval. Objective severity is worsening on all three indices.",
+      "rubric_ref": "1"
+    },
+    {
+      "criterion_id": 2,
+      "criterion_text": "Symptom trajectory, including nail and joint involvement, shows a directional change.",
+      "status": "worsening",
+      "evidence": [
+        {"doc_id": "visit3_nursing_note", "quote": "onycholysis noted on two fingernails", "date": "2026-05-10"},
+        {"doc_id": "visit3_nursing_note", "quote": "new scalp plaques along the posterior hairline", "date": "2026-05-10"},
+        {"doc_id": "visit4_portal_message", "quote": "worse over the past few weeks", "date": "2026-06-25"}
+      ],
+      "reasoning": "New nail findings (onycholysis) and new scalp plaques appeared at V3, and the patient reports subjective worsening in the V4-interval portal message. Symptom trajectory is worsening. Note: the nail finding was documented only in the nursing note; the derm notes never use the phrase 'nail involvement'.",
+      "rubric_ref": "2"
+    },
+    {
+      "criterion_id": 3,
+      "criterion_text": "DLQI (Dermatology Life Quality Index) trend shows a directional change.",
+      "status": "worsening",
+      "evidence": [
+        {"doc_id": "visit1_derm_note", "quote": "DLQI 7", "date": "2026-02-02"},
+        {"doc_id": "visit3_derm_note", "quote": "DLQI 15", "date": "2026-05-10"},
+        {"doc_id": "visit4_derm_note", "quote": "DLQI 17", "date": "2026-06-29"}
+      ],
+      "reasoning": "DLQI rose from 7 to 15 to 17, a sustained increase well beyond the 4-point threshold. Quality-of-life impact is worsening.",
+      "rubric_ref": "3"
+    },
+    {
+      "criterion_id": 4,
+      "criterion_text": "Treatment-response adequacy: the current regimen has been given an adequate, adherent trial.",
+      "status": "insufficient",
+      "evidence": [
+        {"doc_id": "visit3_derm_note", "quote": "start adalimumab 40 mg subcutaneously every 2 weeks, first dose administered today", "date": "2026-05-10"},
+        {"doc_id": "visit4_adherence_note", "quote": "doses taken 2026-05-10 and 2026-05-24; doses due 2026-06-07 and 2026-06-21 were missed", "date": "2026-06-29"}
+      ],
+      "reasoning": "Adalimumab was started 2026-05-10 at 40 mg q2wk, but two of the four scheduled doses were missed (2026-06-07, 2026-06-21), plus a 3-week NB-UVB gap. The regimen has not received an adequate adherent trial, so response adequacy cannot be assessed.",
+      "rubric_ref": "4"
+    },
+    {
+      "criterion_id": 5,
+      "criterion_text": "Worsening cannot be attributed to disease if a confounder (non-adherence, infection, steroid-withdrawal or seasonal flare) is unaddressed.",
+      "status": "insufficient",
+      "evidence": [
+        {"doc_id": "visit4_adherence_note", "quote": "doses due 2026-06-07 and 2026-06-21 were missed", "date": "2026-06-29"},
+        {"doc_id": "visit4_portal_message", "quote": "worse over the past few weeks", "date": "2026-06-25"}
+      ],
+      "reasoning": "CONCEDED after round-1 challenge. A non-adherence confounder (two missed adalimumab doses) is present and unaddressed: the chart never establishes whether flare onset preceded the first missed dose (2026-06-07), and no clinician note attributes the worsening independent of the missed doses. Documentation that would settle it: a dated symptom-onset earlier than 2026-06-07, or an explicit clinical assessment excluding non-adherence as the driver.",
+      "rubric_ref": "5"
+    }
+  ],
+  "challenges": [
+    [
+      {
+        "criterion_id": 5,
+        "challenge_reason": "Packet item 1 asserts objective worsening, while packet item 5's own evidence documents two missed adalimumab doses with no exclusion of non-adherence as the cause of the decline. The packet is internally inconsistent: it attributes worsening to disease while an unexcluded confounder sits in its own evidence.",
+        "rubric_quote": "Worsening cannot be attributed to disease if a confounder (non-adherence, infection, steroid-withdrawal or seasonal flare) is unaddressed.",
+        "what_would_satisfy": "Packet evidence that flare onset predates the first missed dose (2026-06-07), or a chart statement excluding non-adherence as the driver of the worsening."
+      }
+    ],
+    []
+  ],
+  "search_trace": [
+    {
+      "criterion_id": 2,
+      "attempts": ["nail involvement", "onycholysis"],
+      "resolved_in": "visit3_nursing_note"
+    }
+  ]
+}
