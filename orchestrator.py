@@ -155,9 +155,14 @@ def run(patient_dir: str, assemble=None, review=None, repair=None, notify=None) 
             # Two-strikes rule: if B challenges the same criterion in a second
             # round, A's repair has already had its one full chance and failed
             # to convince — force the concession rather than looping to the
-            # cap on an unwinnable point.
+            # cap on an unwinnable point. Strikes count ROUNDS, not challenge
+            # objects: several same-round challenges on one criterion are a
+            # single strike, because repair has only had one shot at them.
+            first_challenge_by_cid = {}
             for challenge in challenges:
-                cid = challenge.get("criterion_id")
+                first_challenge_by_cid.setdefault(challenge.get("criterion_id"),
+                                                  challenge)
+            for cid, challenge in first_challenge_by_cid.items():
                 challenge_rounds_by_cid[cid] = challenge_rounds_by_cid.get(cid, 0) + 1
                 if challenge_rounds_by_cid[cid] >= 2:
                     for entry in run_state["packet"]:
@@ -204,6 +209,10 @@ def run(patient_dir: str, assemble=None, review=None, repair=None, notify=None) 
         events.emit("sys", "terminal", run_state["terminal_state"],
                     terminal=run_state["terminal_state"], round=run_state["round"])
         _maybe_notify(run_state, notify)
+        # Re-persist the final round WITH the terminal state (and any patient
+        # message), matching the stand-down/early-exit paths — the UI's /state
+        # reads round files, not _final.json, for its "latest" run_state.
+        _persist_round(run_state)
         _persist_final(run_state)
         return run_state
     finally:

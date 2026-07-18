@@ -473,19 +473,23 @@ def _photo_findings(corpus_dir: str) -> list:
     if _client is None and not os.environ.get("ANTHROPIC_API_KEY"):
         return []
 
-    # Map visit prefixes to dates using the notes themselves.
+    # Map visit prefixes to dates using the notes themselves. Deterministic:
+    # files in sorted order, and the note's "**Date:**" header wins over any
+    # other date mentioned in its body (e.g. missed-dose dates).
     visit_dates = {}
-    for md in _glob.glob(os.path.join(corpus_dir, "*.md")):
+    for md in sorted(_glob.glob(os.path.join(corpus_dir, "*.md"))):
         stem = os.path.basename(md).split("_")[0]
         if stem in visit_dates:
             continue
         try:
             with open(md, "r", encoding="utf-8") as f:
-                m = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", f.read())
-            if m:
-                visit_dates[stem] = m.group(1)
+                text = f.read()
         except OSError:
             continue
+        m = (re.search(r"\*\*Date:\*\*\s*(\d{4}-\d{2}-\d{2})", text)
+             or re.search(r"\b(\d{4}-\d{2}-\d{2})\b", text))
+        if m:
+            visit_dates[stem] = m.group(1)
 
     content = []
     rels = []
@@ -662,13 +666,21 @@ def _packet_grounding(packet: list, rubric: list):
 def _challenge_violations(challenge: dict, doc_ids, dates, packet_blob, rubric_blob):
     """Invariant-1 guard: flag references to material absent from the packet.
 
-    Only challenge_reason and what_would_satisfy are scanned (per spec).
+    challenge_reason and what_would_satisfy are scanned for doc_ids/dates/
+    quotes (per spec); rubric_quote must be verbatim rubric text — it is
+    rendered to clinicians as a rubric citation, so a paraphrase is a
+    fabricated quote.
     """
     violations = []
     text = " ".join(
         str(challenge.get(k, "")) for k in ("challenge_reason", "what_would_satisfy")
     )
     allowed_blob = _norm_ws(packet_blob + " " + rubric_blob)
+    rubric_quote = str(challenge.get("rubric_quote", ""))
+    if rubric_quote.strip() and _norm_ws(rubric_quote) not in _norm_ws(rubric_blob):
+        violations.append(
+            "rubric_quote is not verbatim rubric text: '%s...'" % rubric_quote[:40]
+        )
     for token in set(_DOCID_RE.findall(text)):
         if token in doc_ids:
             continue

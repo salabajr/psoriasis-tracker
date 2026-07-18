@@ -38,6 +38,16 @@ def main():
         for f in sorted(patient_dir.glob("*.md")):
             if f.stem.split("_")[0] <= cutoff:
                 shutil.copy(f, sliced / f.name)
+        # Carry the in-range chart photographs so the vision pass still runs.
+        images = [
+            f for f in sorted((patient_dir / "images").glob("*"))
+            if f.suffix.lower() in (".jpg", ".jpeg", ".png")
+            and f.stem.split("_")[0] <= cutoff
+        ]
+        if images:
+            (sliced / "images").mkdir()
+            for f in images:
+                shutil.copy(f, sliced / "images" / f.name)
         patient_dir = sliced
 
     state = run(str(patient_dir))

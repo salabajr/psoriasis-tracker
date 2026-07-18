@@ -282,6 +282,38 @@ def test_review_guard_strips_hallucinated_docid():
     print("PASS  test_review_guard_strips_hallucinated_docid")
 
 
+def test_review_guard_strips_fabricated_rubric_quote():
+    bad_challenge = [{
+        "criterion_id": 5,
+        "challenge_reason": "The worsening claim leaves the confounder question "
+                            "unresolved.",
+        "rubric_quote": "All confounders must be excluded by laboratory testing "
+                        "before any worsening call.",  # nowhere in the rubric
+        "what_would_satisfy": "A chart statement excluding non-adherence as the "
+                              "driver of the worsening.",
+    }]
+    # Model fabricates the same rubric text twice: guard strips, retries once,
+    # strips again, then gives up and returns [].
+    client = MockClient(json.dumps(bad_challenge), json.dumps(bad_challenge))
+    agents.set_client(client)
+    agents.set_tools(MockTools([]))
+
+    challenges = agents.review(FIXTURE_PACKET, RUBRIC)
+
+    check(challenges == [], "fabricated rubric_quote must be stripped, got %r" % challenges)
+    check(len(client.messages.calls) == 2,
+          "guard must retry exactly once (got %d calls)" % len(client.messages.calls))
+    retry_text = client.messages.calls[1]["messages"][0]["content"]
+    check("rubric_quote" in retry_text and "REJECTED" in retry_text,
+          "retry must explain the fabricated rubric quote to the model")
+    # A verbatim rubric quote (any case/whitespace) still passes the guard.
+    good = [dict(FIXTURE_CHALLENGES[0], rubric_quote=RUBRIC[4]["text"].upper())]
+    agents.set_client(MockClient(json.dumps(good)))
+    kept = agents.review(FIXTURE_PACKET, RUBRIC)
+    check(len(kept) == 1, "verbatim-modulo-case rubric_quote must survive, got %r" % kept)
+    print("PASS  test_review_guard_strips_fabricated_rubric_quote")
+
+
 def test_review_stand_down():
     client = MockClient("[]")
     agents.set_client(client)
@@ -394,6 +426,7 @@ def main():
         test_assemble_run_state,
         test_review_valid_challenge,
         test_review_guard_strips_hallucinated_docid,
+        test_review_guard_strips_fabricated_rubric_quote,
         test_review_stand_down,
         test_repair_concession,
         test_request_structure_cache_prefix,

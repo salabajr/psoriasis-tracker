@@ -306,7 +306,7 @@
 "use strict";
 const $ = id => document.getElementById(id);
 let cursor = 0, activePid = null, presets = null, terminalSeen = null;
-let progress = 0, ticks = 0, smsText = "", pctMode = false;
+let progress = 0, ticks = 0, smsText = "", pctMode = false, sawTool = false;
 let eventsPid = null;   // which run's event stream the feed is showing
 let eventsRunId = null; // per-run identity — detects same-patient restarts
 
@@ -403,22 +403,34 @@ function resetRunView() {
   // One run = one transcript. Called when a new run's stream begins so
   // consecutive runs never concatenate into what reads like a loop.
   cursor = 0; ticks = 0; progress = 0; terminalSeen = null;
-  pctMode = false; smsText = "";
+  pctMode = false; smsText = ""; sawTool = false;
   $("feed").innerHTML = "";
   $("verdict").className = "card";
   $("fill").className = "fill";
   $("fill").style.width = "0%";
   $("pct").textContent = "0%";
+  // Blank the detail panels too, so the previous run's verdict/evidence
+  // never lingers while the new transcript plays.
+  lastStateJson = "";
+  $("matrix").querySelector("tbody").innerHTML = "";
+  $("trace").innerHTML = "";
 }
 
 async function startRun(body) {
   $("runerr").textContent = "";
-  const r = await fetch("/run", { method: "POST",
-    headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  const j = await r.json();
+  let j;
+  try {
+    const r = await fetch("/run", { method: "POST",
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    j = await r.json();
+  } catch (e) {
+    $("runerr").textContent = "could not reach the server — is it still running?";
+    return;
+  }
   if (!j.ok) { $("runerr").textContent = j.error || "run failed"; return; }
   activePid = j.patient_id;
   eventsPid = j.patient_id;
+  sessionHasRun = true;
   resetRunView();
   pctMode = j.mode === "cached";
   setProgress(2, j.mode === "cached"
@@ -454,7 +466,7 @@ function addEvent(e) {
       d = document.createElement("div");
       d.id = "live-" + sid;
       d.className = "evt live " + e.actor;
-      const who = e.actor === "A" ? "Agent A — writing…" : "Agent B — writing…";
+      const who = e.actor === "A" ? "Agent A — writing…" : "Agent B — nurse — writing…";
       d.innerHTML = '<div class="who">' + who + '</div><pre class="livetext"></pre>';
       feed.appendChild(d);
     }
@@ -471,8 +483,17 @@ function addEvent(e) {
       const raw = pre.textContent;
       if (raw.trim().length < 25) { d.remove(); autoscroll(); return; }
       d.classList.remove("live");
-      const who = e.actor === "A" ? "Agent A" : "Agent B";
+      const who = e.actor === "A" ? "Agent A" : "Agent B — nurse";
+      // B's reasoning before the pharmacy call gets a plain-language lead-in
+      // so the dropdown isn't the only explanation of why we're checking.
+      let lead = "";
+      if (e.actor === "B" && !sawTool && /pharmac|dispense|fill/i.test(raw))
+        lead = "Everything hinges on whether he was really getting his " +
+          "medication, and the chart alone can’t prove that — so " +
+          "before we blame the disease, we’re double-checking the " +
+          "pharmacy’s fill records.";
       d.innerHTML = '<div class="who">' + who + ' — finished writing</div>' +
+        esc(lead) +
         '<details><summary>raw model output</summary><pre class="livetext">' +
         esc(raw) + "</pre></details>";
     }
@@ -495,6 +516,22 @@ function addEvent(e) {
     const d = document.createElement("div");
     d.className = "divider"; d.textContent = "verdict: " + e.text.split("_").join(" ");
     feed.appendChild(d);
+    // Close the transcript with the nurse's bottom line.
+    const BOTTOM = {
+      INSUFFICIENT_EVIDENCE: "Bottom line: his skin is worse, but he was off " +
+        "his medication the whole time it was worsening — we can’t call it " +
+        "disease progression until he’s back on treatment and re-checked.",
+      CONFIRMED_WORSENING: "Bottom line: this is real progression — he got " +
+        "worse while taking everything on schedule. Time to talk about " +
+        "stepping up therapy.",
+      STABLE: "Bottom line: holding steady — no meaningful change over " +
+        "these visits."
+    };
+    const vb = document.createElement("div");
+    vb.className = "evt B";
+    vb.innerHTML = '<div class="who">Agent B — nurse</div>' +
+      esc(BOTTOM[e.text] || "Bottom line: review closed.");
+    feed.appendChild(vb);
     setProgress(100, "Run complete — " + e.text.split("_").join(" "));
     $("fill").classList.add(e.text === "CONFIRMED_WORSENING" ? "done-bad" :
                             e.text === "STABLE" ? "done-stable" : "done-good");
@@ -514,21 +551,24 @@ function addEvent(e) {
     smsText = e.text;
     const div = document.createElement("div");
     div.className = "evt B";
-    div.innerHTML = '<div class="who">Agent B — communicator</div>' +
+    div.innerHTML = '<div class="who">Agent B — nurse</div>' +
       "\u{1F4F1} Text message sent to the patient. " +
       '<a href="#" onclick="openSms(); return false;">View message</a>';
     feed.appendChild(div);
     autoscroll();
-    setTimeout(openSms, 900);
     return;
   }
+
+  // B's "verify" notes are the same text that lands in the raw-output
+  // dropdown — rendering both reads as a repeat, so the card is skipped.
+  if (e.type === "verify") { return; }
+  if (e.type === "tool") sawTool = true;
 
   const div = document.createElement("div");
   div.className = "evt " + e.actor + " " + e.type;
   const who = e.actor === "A" ? "Agent A — chart reviewer" :
-              e.type === "tool" ? "Agent B — pharmacy check" :
-              e.type === "verify" ? "Agent B — verification findings" :
-              e.actor === "B" ? "Agent B — nurse auditor" : "system";
+              e.type === "tool" ? "Agent B — nurse · pharmacy check" :
+              e.actor === "B" ? "Agent B — nurse" : "system";
   let inner = '<div class="who">' + who + "</div>" + esc(e.text);
   if (e.type === "challenge" && e.data) {
     if (e.data.rubric_quote)
@@ -586,37 +626,34 @@ function renderVerdict(st) {
   v.className = "card show " + st.terminal_state;
   const packet = st.packet || [];
   const pasi = pasiTrend(packet);
-  const item5 = packet.find(e => e.criterion_id === 5) || {};
-  const conf = (st.challenges || []).flat().find(c => c.criterion_id === 5) || {};
   let head, explain, settle = "";
   if (st.terminal_state === "INSUFFICIENT_EVIDENCE") {
-    head = "⚠︎ Worsening cannot be confirmed yet";
-    explain = "The objective numbers clearly worsened" +
+    head = "⚠︎ Worse — but we can’t blame the disease yet";
+    explain = "The scores did climb" +
       (pasi ? ' (<span class="pasi">PASI ' + pasi + "</span>)" : "") +
-      ", but the chart cannot rule out a confounder — the disease can’t be " +
-      "blamed until the missed treatment is accounted for. Agent A conceded this " +
-      "under challenge from Agent B.";
-    settle = conf.what_would_satisfy ||
-      ((item5.reasoning || "").split("Documentation that would settle it:")[1] || "");
+      ", but he was off his medication over that same stretch. " +
+      "Could be the disease, could be the missed doses — we can’t tell yet.";
+    settle = "Get him back on his injections and re-check. If he’s still " +
+      "getting worse on confirmed treatment, that settles it.";
   } else if (st.terminal_state === "CONFIRMED_WORSENING") {
-    head = "\u{1F534} Disease progression confirmed";
-    explain = "Objective severity worsened" +
+    head = "\u{1F534} This is real progression";
+    explain = "He got worse" +
       (pasi ? ' (<span class="pasi">PASI ' + pasi + "</span>)" : "") +
-      " with treatment adherence verified and no unaddressed confounder. " +
-      "Agent B reviewed the packet and stood down — the worsening claim " +
-      "survived adversarial review.";
+      " while taking everything on schedule — the pharmacy records back that " +
+      "up, and nothing else in the chart explains it. Time to talk about " +
+      "stepping up therapy.";
   } else {
-    head = "\u{1F7E2} Disease stable";
-    explain = "No meaningful change in severity, symptoms, or quality of life " +
+    head = "\u{1F7E2} Holding steady";
+    explain = "No meaningful change in severity or quality of life " +
       (pasi ? '(<span class="pasi">PASI ' + pasi + "</span>) " : "") +
-      "across the reviewed interval.";
+      "across these visits.";
   }
   $("v-head").innerHTML = head;
   $("v-explain").innerHTML = explain;
   const s = String(settle || "").trim();
   if (s) {
     $("v-settle").style.display = "";
-    $("v-settle").innerHTML = "<b>What would settle it</b>" + esc(s);
+    $("v-settle").innerHTML = "<b>Next step</b>" + esc(s);
   } else { $("v-settle").style.display = "none"; }
   if (st.patient_message) {
     smsText = st.patient_message;
@@ -691,11 +728,30 @@ function renderTrace(st) {
 
 /* ---------- polling ---------- */
 let lastStateJson = "";
+// A freshly loaded page starts blank: everything already in the event log is
+// history, and the detail panels stay empty until a run happens on our watch.
+let primed = false, sessionHasRun = false;
 async function pollEvents() {
   let delay = 1000;
+  const reqCursor = cursor;
   try {
-    const r = await fetch("/events?after=" + cursor);
+    const r = await fetch("/events?after=" + reqCursor);
     const j = await r.json();
+    if (cursor !== reqCursor) {
+      // A new run reset the cursor while this request was in flight; its
+      // events and "next" belong to the old stream — drop them, poll fresh.
+      setTimeout(pollEvents, 150);
+      return;
+    }
+    if (!primed) {
+      // First poll after page load: skip past the recorded history so the
+      // transcript starts empty and progress stays at 0.
+      primed = true;
+      eventsPid = j.pid; eventsRunId = j.run_id;
+      cursor = j.next || 0;
+      setTimeout(pollEvents, j.running ? 300 : 1000);
+      return;
+    }
     const switched =
       (j.pid && eventsPid && j.pid !== eventsPid) ||
       (j.run_id && eventsRunId && j.run_id !== eventsRunId);
@@ -704,13 +760,17 @@ async function pollEvents() {
       // same-patient restart) — reset and re-read it from the top instead
       // of splicing its tail under the old transcript.
       eventsPid = j.pid; eventsRunId = j.run_id;
+      sessionHasRun = true;
       resetRunView();
       setTimeout(pollEvents, 50);
       return;
     }
+    if (j.run_id && !eventsRunId) sessionHasRun = true;  // first-ever stream
     if (j.pid) eventsPid = j.pid;
     if (j.run_id) eventsRunId = j.run_id;
-    (j.events || []).forEach(addEvent);
+    // Until a run starts on our watch, stay blank — don't render the tail
+    // of a run that was already in flight when the page loaded.
+    if (sessionHasRun) (j.events || []).forEach(addEvent);
     cursor = j.next || cursor;
     if (j.running) delay = 300;  // stream deltas land near-live during a run
     if (!j.running && terminalSeen === null && cursor > 0) {
@@ -724,15 +784,25 @@ async function pollState() {
   try {
     const r = await fetch("/state");
     const j = await r.json();
+    if (!sessionHasRun) {
+      // Nothing has run since this page loaded — keep every panel blank
+      // rather than showing a previous session's results.
+      setTimeout(pollState, 2000);
+      return;
+    }
     if (j.latest) {
       const key = JSON.stringify(j.latest);
       if (key !== lastStateJson) {
         lastStateJson = key;
         $("runlabel").textContent = j.latest.patient_id + " · round " + j.latest.round;
-        renderVerdict(j.latest);
         renderMatrix(j.latest);
         renderTrace(j.latest);
       }
+      // The verdict card is the finale: keep it hidden while a run (or
+      // cached playback) is still going — it appears once the transcript
+      // has finished, never spoiling the ending up top.
+      if (j.running) $("verdict").className = "card";
+      else renderVerdict(j.latest);
     }
   } catch (e) { /* ignore */ }
   setTimeout(pollState, 2000);

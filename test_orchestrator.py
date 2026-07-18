@@ -129,7 +129,11 @@ def scenario_b(tmp_root):
 def scenario_c(tmp_root):
     """B challenges a DIFFERENT criterion each round (so neither the
     two-strikes rule nor the concede-all early-exit fires), repair never
-    concedes -> loop stops at the round-3 cap."""
+    concedes -> loop stops at the round-3 cap.
+
+    Rotates items 1, 2, 3 — all "worsening" in the fixture. (Item 4 is already
+    "insufficient", so challenging it would trip the concede-all early-exit
+    and never reach the genuine cap fall-through.)"""
     packet = _load_fixture("fixture_packet.json")
     challenge = _load_fixture("fixture_challenges.json")
     patient_dir = _make_patient_dir(tmp_root, "patientC")
@@ -143,7 +147,7 @@ def scenario_c(tmp_root):
     def review(pkt, rubric):
         review_calls["n"] += 1
         ch = copy.deepcopy(challenge)
-        ch[0]["criterion_id"] = 1 + review_calls["n"]  # rounds hit items 2, 3, 4
+        ch[0]["criterion_id"] = review_calls["n"]  # rounds hit items 1, 2, 3
         return ch
 
     def repair(pkt, challenges, corpus_dir):
@@ -156,7 +160,57 @@ def scenario_c(tmp_root):
     assert len(state["challenges"]) == 3
     assert all(len(c) == 1 for c in state["challenges"])
     assert state["terminal_state"] is not None, "terminal must be computed at the cap"
-    print("PASS scenario C: round cap enforced at 3, terminal computed = %s" % state["terminal_state"])
+
+    # The last round file must carry the terminal state: /state's "latest" is
+    # built from round files (never _final.json), so a cap-ended run would
+    # otherwise show no verdict in the UI.
+    with open(os.path.join(RUNS_DIR, "patientC_round3.json")) as f:
+        round3 = json.load(f)
+    assert round3["terminal_state"] == state["terminal_state"], (
+        "cap path must re-persist the final round with terminal_state, got %r"
+        % round3["terminal_state"])
+    print("PASS scenario C: round cap enforced at 3, terminal computed = %s, "
+          "round3 file carries terminal" % state["terminal_state"])
+
+
+def scenario_d(tmp_root):
+    """Two-strikes counts ROUNDS, not challenge objects: two same-round
+    challenges on criterion 5 are ONE strike, so repair (which never concedes)
+    gets its round-2 chance; the second-round re-challenge is strike two and
+    forces the concession."""
+    packet = _load_fixture("fixture_packet.json")
+    challenge = _load_fixture("fixture_challenges.json")
+    patient_dir = _make_patient_dir(tmp_root, "patientD")
+    _track_runs("patientD")
+
+    review_calls = {"n": 0}
+
+    def assemble(rubric, corpus_dir):
+        return _make_run_state(packet, patient_id="patientD")
+
+    def review(pkt, rubric):
+        review_calls["n"] += 1
+        first = copy.deepcopy(challenge)[0]
+        second = copy.deepcopy(challenge)[0]
+        second["challenge_reason"] = "Second phrasing of the same objection."
+        return [first, second]  # both target criterion 5, every round
+
+    def repair(pkt, challenges, corpus_dir):
+        return copy.deepcopy(pkt)  # never concedes on its own
+
+    state = run(patient_dir, assemble=assemble, review=review, repair=repair)
+
+    item5 = next(e for e in state["packet"] if e["criterion_id"] == 5)
+    assert review_calls["n"] == 2, (
+        "duplicate same-round challenges must NOT close the debate in round 1 "
+        "(review called %d time(s))" % review_calls["n"])
+    assert state["round"] == 2, state["round"]
+    assert item5["status"] == "insufficient", item5["status"]
+    assert "conceded after repeated challenge" in item5["reasoning"].lower(), \
+        item5["reasoning"]
+    assert state["terminal_state"] == "INSUFFICIENT_EVIDENCE", state["terminal_state"]
+    print("PASS scenario D: same-round duplicate challenges = one strike; "
+          "concession forced in round 2, not round 1")
 
 
 def check_persistence(final_state_a):
@@ -190,6 +244,7 @@ def main():
         state_a = scenario_a(tmp_root)
         scenario_b(tmp_root)
         scenario_c(tmp_root)
+        scenario_d(tmp_root)
         check_persistence(state_a)
         assert "agents" not in sys.modules, "agents.py was imported — stubs leaked"
         print("ALL TESTS PASSED")

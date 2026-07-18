@@ -299,7 +299,11 @@ def _rank_offline(
 # the same signature; the agent never knows the difference.
 
 _PHARMACY_DIR = Path(__file__).resolve().parent / "data" / "pharmacy"
-_EMPTY_BUNDLE = {"resourceType": "Bundle", "type": "searchset", "entry": []}
+
+
+def _empty_bundle() -> dict:
+    """A fresh empty searchset bundle (never a shared mutable instance)."""
+    return {"resourceType": "Bundle", "type": "searchset", "entry": []}
 
 
 def _resolve_pharmacy_id(patient_id: str) -> str:
@@ -325,7 +329,7 @@ def pharmacy_lookup(patient_id: str) -> dict:
             return bundle
     except (OSError, json.JSONDecodeError):
         pass
-    return dict(_EMPTY_BUNDLE)
+    return _empty_bundle()
 
 
 def verify_dispense(resource_id: str, patient_id: str) -> bool:
