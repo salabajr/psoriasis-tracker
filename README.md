@@ -26,7 +26,7 @@ challenge/repair rounds and emits a terminal state:
 
 ```bash
 uv venv && uv pip install -r requirements.txt
-export ANTHROPIC_API_KEY=...
+cp .env.example .env   # then put your key in .env as ANTHROPIC_API_KEY=...
 python main.py --patient corpus/patient1        # full adversarial run
 uvicorn app:app --port 8000                     # UI at http://localhost:8000
 ```

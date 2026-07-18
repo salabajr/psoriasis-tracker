@@ -8,6 +8,35 @@ Phase 0 is committed.
 
 ---
 
+## PRE-FLIGHT (human does this before H0 — hard blocker for Phase 1 API work)
+
+1. **Claim the $100 credits NOW.** Link:
+   `https://claude.com/offers?offer_code=46b9a7ba-b27b-471c-b65b-f08e5e3673c8`
+   — claim with the email on your Anthropic Console account. **The form closes
+   Sun July 19 (tomorrow night); claim before building.** Credits valid 90 days.
+2. **Set the key server-side only:** `export ANTHROPIC_API_KEY=...`. This repo is
+   PUBLIC (rights-clean redistribution is a project requirement), so: key never
+   in code, never committed. Add `.gitignore` (`.env`, `*.key`) and a
+   `.env.example` in Phase 0. The UI makes no Claude calls, so no key ever
+   touches `static/`.
+3. **Install the build harness:** `npm install -g @anthropic-ai/claude-code`, log
+   in with the Console account (Claude Code usage also draws on the $100 — the
+   build agent and the app's runtime calls share the budget; prompt caching keeps
+   the app side cheap).
+4. **Smoke-test one call** (Get Started guide) to confirm key + credits + model
+   string all resolve before fanning out.
+5. **SDK decision (important):** the app's agents use the **plain `anthropic`
+   Python SDK** with the hand-rolled orchestrator in this brief — NOT the Claude
+   Agent SDK. The visible, deterministic challenge→repair loop IS the product; an
+   agent-harness would abstract away the exact thing the demo must show. Claude
+   Code (agentic) builds it; the shipped app stays raw-SDK and inspectable.
+6. **If the first real call fails, check these three first** (the event's own POC
+   says most tickets are auth/rate-limit): key exported in the subagent's env,
+   credits actually claimed, `config.MODEL` resolves. Escalation: hackathon
+   Slack / `hackathon+abridge-lsvp-hackathon@anthropic.com`.
+
+---
+
 ## ORCHESTRATION PROTOCOL (read first)
 
 1. **Phase 0 (you, serial, ~15 min).** Create the repo, write the frozen
@@ -81,15 +110,16 @@ These correct real bugs in the source spec. Every relevant workstream honors the
 
 ## CLAUDE BUILD PRACTICES (fold into WS-TOOLS and WS-AGENTS)
 
-Derived from Anthropic's current published agent guidance. Reconcile with the
-event's own resources doc once it's readable — if that doc names a specific
-recommended model or credit detail, it wins over the defaults here.
+Reconciled with the event resources doc (read) + Anthropic's current agent
+guidance. The event doc pins no specific model — confirm `config.MODEL` via the
+model-comparison page / Console.
 
-- **Credits + model.** Each participant has ~$100 in API credits (claim link in
-  the event doc). The spec pins `claude-sonnet-4-6`; model strings drift, so keep
-  it in `config.py` as the ONLY place a model string appears and confirm it
-  resolves against the credit-linked account before the first real call. One
-  model everywhere — model-mixing is a debugging tax you can't afford in 4h.
+- **Credits + model.** ~$100 per participant, shared across the build agent and
+  the app's runtime. The spec pins `claude-sonnet-4-6`; keep it in `config.py` as
+  the ONLY place a model string appears. One model everywhere — model-mixing is a
+  debugging tax you can't afford in 4h. (Credit-pressure fallback ONLY: the
+  chart_search ranking call is the one safe place to drop to a cheaper model,
+  since it's extraction not judgment. Don't unless credits actually run low.)
 - **Prompt caching is the highest-ROI lever here.** Every `chart_search`,
   assemble, review, and repair call re-sends the same large static prefix (agent
   system prompt + rubric + the ~10–12-note corpus block). Mark that prefix with
@@ -103,6 +133,12 @@ recommended model or credit detail, it wins over the defaults here.
 - **Cost discipline.** verify_quote and the keyword prefilter in chart_search are
   plain Python — no API call. Only the ranking step of chart_search and the three
   agent modes call Claude. Keep it that way; don't add model calls to the tools.
+- **Reference recipes (don't reinvent):** tool-use / function-calling shape for
+  `agents.py` and `tools.py` → Claude Cookbooks tool-use notebook
+  (github.com/anthropics/claude-cookbooks); the three system prompts → Prompt
+  Engineering Interactive Tutorial + prompting best-practices docs; the eval-grid
+  icing → Cookbooks evals recipe; the FHIR MCP icing → fork a reference server
+  from github.com/modelcontextprotocol/servers rather than building from zero.
 
 ---
 
