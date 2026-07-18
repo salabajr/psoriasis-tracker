@@ -22,6 +22,6 @@
   {
     "id": 5,
     "text": "Worsening cannot be attributed to disease if a confounder (non-adherence, infection, steroid-withdrawal or seasonal flare) is unaddressed.",
-    "how": "Actively search the chart for each confounder class: missed/stopped medications, intercurrent infection, recent steroid taper or withdrawal, seasonal pattern. A confounder is 'addressed' only if the chart either excludes it or establishes that worsening preceded it. If any confounder is present and unaddressed, this item cannot pass."
+    "how": "Actively search the chart for each confounder class: missed/stopped medications, intercurrent infection, recent steroid taper or withdrawal, seasonal pattern. A confounder is 'addressed' only if the chart either excludes it or establishes that worsening preceded it. Precedence must hold for the MOST RECENT worsening interval: when the latest measurements or symptom reports postdate an unexcluded confounder, the chart must date the onset of that latest deterioration before the confounder began — worsening documented in an earlier interval does not address a confounder that overlaps the latest one. If any confounder is present and unaddressed, this item cannot pass."
   }
 ]

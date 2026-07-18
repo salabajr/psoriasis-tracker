@@ -27,9 +27,19 @@ challenge/repair rounds and emits a terminal state:
 ```bash
 uv venv && uv pip install -r requirements.txt
 cp .env.example .env   # then put your key in .env as ANTHROPIC_API_KEY=...
-python main.py --patient corpus/patient1        # full adversarial run
-uvicorn app:app --port 8000                     # UI at http://localhost:8000
+python main.py --patient corpus/patient1        # full adversarial run (CLI)
+uvicorn app:app --port 8000                     # demo UI at http://localhost:8000
 ```
+
+## Live demo UI
+
+The page at `/` is the demo: pick a preset (Patient chart / Adherent twin /
+V1–V2 only) or paste any chart — notes separated by `=== filename.md ===`
+lines — and hit **Run adversarial review**. A progress bar and live agent
+transcript stream while Agent A searches/assembles and Agent B challenges;
+the verdict lands as a plain-English card. **Replay cached demo run** replays
+the committed patient1 run with theatrical pacing and needs no API key —
+that's the offline/wifi-failure fallback for presenting.
 
 Expected terminals: patient1 → INSUFFICIENT_EVIDENCE (unaddressed
 non-adherence confounder); patient1_twin → CONFIRMED_WORSENING;

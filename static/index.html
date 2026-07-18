@@ -3,424 +3,414 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Chart Review — Results Viewer</title>
+<title>Psoriasis Progression Monitor</title>
 <style>
   :root {
-    --ink: #1c2733;
-    --ink-soft: #55636f;
-    --ink-faint: #8a97a3;
-    --paper: #f7f8f9;
-    --card: #ffffff;
-    --line: #dde3e8;
-    --line-soft: #eaeef1;
-
-    --worsening-bg: #f6e3e1;  --worsening-fg: #8c3a30;
-    --stable-bg: #e2ecf4;     --stable-fg: #34597a;
-    --improving-bg: #e2efe4;  --improving-fg: #2f6b3c;
-    --insufficient-bg: #f5ecd9; --insufficient-fg: #8a6a1f;
-    --progress-bg: #e9ecef;   --progress-fg: #4d5a66;
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1c2733; --muted: #5c6b7a;
+    --line: #dde3ea; --accent: #1f6feb;
+    --a-ink: #0b4a8f; --a-bg: #eef5fd; --a-line: #b9d4f2;
+    --b-ink: #8a5a00; --b-bg: #fdf6e7; --b-line: #ecd9ab;
+    --bad: #b42331; --good: #1a7f4b; --warn: #9a6700;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   }
   * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    background: var(--paper);
-    color: var(--ink);
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-                 "Helvetica Neue", Arial, sans-serif;
-    font-size: 15px;
-    line-height: 1.55;
-  }
-  main { max-width: 980px; margin: 0 auto; padding: 32px 24px 80px; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+         font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+  header { padding: 18px 28px 14px; border-bottom: 1px solid var(--line);
+           background: var(--panel); display: flex; align-items: baseline; gap: 14px; }
+  header h1 { font-size: 19px; margin: 0; letter-spacing: -0.01em; }
+  header .sub { color: var(--muted); font-size: 13px; }
+  #runlabel { margin-left: auto; font: 12px var(--mono); color: var(--muted); }
 
-  header.page { margin-bottom: 28px; }
-  header.page h1 {
-    font-size: 20px; font-weight: 600; margin: 0 0 2px;
-    letter-spacing: -0.01em;
-  }
-  header.page .sub { color: var(--ink-soft); font-size: 13px; }
+  .wrap { display: grid; grid-template-columns: 340px 1fr; gap: 20px;
+          padding: 20px 28px; max-width: 1420px; margin: 0 auto;
+          align-items: start; }
+  @media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } }
+  .card { background: var(--panel); border: 1px solid var(--line);
+          border-radius: 10px; padding: 16px; }
+  .card h2 { margin: 0 0 10px; font-size: 13px; text-transform: uppercase;
+             letter-spacing: 0.06em; color: var(--muted); }
 
-  /* ---- terminal banner ---- */
-  .banner {
-    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
-    border: 1px solid var(--line);
-    border-left: 4px solid var(--progress-fg);
-    background: var(--card);
-    border-radius: 8px;
-    padding: 14px 18px;
-    margin-bottom: 28px;
-  }
-  .banner .verdict { font-size: 17px; font-weight: 700; letter-spacing: 0.02em; }
-  .banner .meta { color: var(--ink-soft); font-size: 13px; }
-  .banner.t-INSUFFICIENT_EVIDENCE { border-left-color: var(--insufficient-fg); }
-  .banner.t-INSUFFICIENT_EVIDENCE .verdict { color: var(--insufficient-fg); }
-  .banner.t-CONFIRMED_WORSENING { border-left-color: var(--worsening-fg); }
-  .banner.t-CONFIRMED_WORSENING .verdict { color: var(--worsening-fg); }
-  .banner.t-STABLE { border-left-color: var(--stable-fg); }
-  .banner.t-STABLE .verdict { color: var(--stable-fg); }
-  .banner.t-progress .verdict { color: var(--progress-fg); }
+  /* ---- input panel ---- */
+  #notes { width: 100%; height: 300px; resize: vertical; font: 11.5px/1.45 var(--mono);
+           border: 1px solid var(--line); border-radius: 8px; padding: 10px;
+           color: var(--ink); background: #fbfcfd; }
+  .presets { display: flex; gap: 8px; flex-wrap: wrap; margin: 10px 0; }
+  button { font: 600 13px/1 -apple-system, sans-serif; border-radius: 8px;
+           border: 1px solid var(--line); background: #fff; color: var(--ink);
+           padding: 9px 12px; cursor: pointer; }
+  button:hover { border-color: var(--accent); color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.primary:hover { filter: brightness(1.08); color: #fff; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  #runbtn { width: 100%; padding: 12px; font-size: 15px; margin-top: 4px; }
+  #runerr { color: var(--bad); font-size: 13px; min-height: 18px; margin-top: 8px; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 8px; }
 
-  section { margin-bottom: 36px; }
-  section > h2 {
-    font-size: 13px; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 0.08em; color: var(--ink-soft);
-    margin: 0 0 12px; padding-bottom: 6px;
-    border-bottom: 1px solid var(--line);
-  }
-  section > h2 .hint { text-transform: none; letter-spacing: 0; font-weight: 400;
-    color: var(--ink-faint); margin-left: 8px; }
+  /* ---- progress ---- */
+  #phasebar { display: flex; align-items: center; gap: 14px; }
+  .track { flex: 1; height: 10px; background: #e9edf2; border-radius: 6px; overflow: hidden; }
+  .fill { height: 100%; width: 0%; border-radius: 6px; background: var(--accent);
+          transition: width 0.6s ease; }
+  .fill.done-bad { background: var(--bad); }
+  .fill.done-good { background: var(--warn); }
+  .fill.done-stable { background: var(--good); }
+  #pct { font: 600 13px var(--mono); color: var(--muted); width: 44px; text-align: right; }
+  #phaselabel { font-size: 14px; color: var(--muted); margin-top: 8px;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-  /* ---- rubric matrix ---- */
-  .matrix { background: var(--card); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
-  .item { border-bottom: 1px solid var(--line-soft); }
-  .item:last-child { border-bottom: none; }
-  .item-row {
-    display: flex; align-items: baseline; gap: 12px;
-    width: 100%; padding: 12px 16px;
-    background: none; border: none; text-align: left;
-    font: inherit; color: inherit; cursor: pointer;
-    transition: background-color 120ms ease;
-  }
-  .item-row:hover { background: #fbfcfd; }
-  .item-row .cid { color: var(--ink-faint); font-variant-numeric: tabular-nums;
-    min-width: 1.4em; }
-  .item-row .crit { flex: 1; }
-  .item-row .caret { color: var(--ink-faint); font-size: 11px;
-    transition: transform 120ms ease; }
-  .item.open .item-row .caret { transform: rotate(90deg); }
-
-  .chip {
-    display: inline-block; padding: 1px 10px; border-radius: 999px;
-    font-size: 12px; font-weight: 600; letter-spacing: 0.02em;
-    white-space: nowrap;
-  }
-  .chip.s-worsening    { background: var(--worsening-bg);    color: var(--worsening-fg); }
-  .chip.s-stable       { background: var(--stable-bg);       color: var(--stable-fg); }
-  .chip.s-improving    { background: var(--improving-bg);    color: var(--improving-fg); }
-  .chip.s-insufficient { background: var(--insufficient-bg); color: var(--insufficient-fg); }
-  .chip.s-unknown      { background: var(--progress-bg);     color: var(--progress-fg); }
-
-  .item-detail { display: none; padding: 2px 16px 16px 42px; }
-  .item.open .item-detail { display: block; }
-  .evidence blockquote {
-    margin: 10px 0 4px; padding: 8px 14px;
-    border-left: 3px solid var(--line);
-    background: #fafbfc; color: var(--ink);
-    font-style: italic; border-radius: 0 6px 6px 0;
-  }
-  .evidence .src { color: var(--ink-faint); font-size: 12.5px; margin-left: 14px; }
-  .evidence .src code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 12px; color: var(--ink-soft); }
-  .reasoning { margin-top: 12px; font-size: 13.5px; color: var(--ink-soft); }
-  .reasoning .lbl, .evidence-none { font-size: 12px; text-transform: uppercase;
-    letter-spacing: 0.06em; color: var(--ink-faint); }
-  .rubric-ref { color: var(--ink-faint); font-size: 12px; margin-top: 6px; }
-
-  /* ---- search trace ---- */
-  .trace {
-    background: var(--card); border: 1px solid var(--line); border-radius: 8px;
-    padding: 6px 16px;
-  }
-  .trace-entry { display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
-    padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
-  .trace-entry:last-child { border-bottom: none; }
-  .trace-entry .tcid { color: var(--ink-soft); font-size: 13px; min-width: 90px; }
-  .q {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 12.5px; padding: 2px 10px; border-radius: 6px;
-    border: 1px solid var(--line); background: #fafbfc;
-  }
-  .q.failed { color: var(--ink-faint); text-decoration: line-through; }
-  .q.hit { background: var(--improving-bg); border-color: #bcd8c1;
-    color: var(--improving-fg); font-weight: 600; text-decoration: none; }
-  .arrow { color: var(--ink-faint); }
-  .resolved { color: var(--ink-soft); font-size: 13px; }
-  .resolved code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 12px; }
-  .resolved .miss { color: var(--worsening-fg); }
+  /* ---- verdict ---- */
+  #verdict { display: none; border-width: 2px; }
+  #verdict.show { display: block; }
+  #verdict.INSUFFICIENT_EVIDENCE { border-color: #e5c98a; background: #fffaf0; }
+  #verdict.CONFIRMED_WORSENING { border-color: #e3a0a6; background: #fff5f5; }
+  #verdict.STABLE { border-color: #a9d8bd; background: #f4fbf7; }
+  #verdict .headline { font-size: 21px; font-weight: 700; letter-spacing: -0.01em; }
+  #verdict .explain { margin-top: 8px; font-size: 15px; }
+  #verdict .settle { margin-top: 12px; padding: 10px 12px; border-radius: 8px;
+                     background: rgba(0,0,0,0.045); font-size: 13.5px; }
+  #verdict .settle b { display: block; margin-bottom: 3px; font-size: 12px;
+                       text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  .pasi { font: 600 14px var(--mono); }
 
   /* ---- transcript ---- */
-  .round { background: var(--card); border: 1px solid var(--line);
-    border-radius: 8px; margin-bottom: 14px; padding: 14px 18px; }
-  .round h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
-  .round h3 .who { color: var(--ink-faint); font-weight: 400; font-size: 13px; }
-  .challenge { border-left: 3px solid var(--worsening-fg);
-    padding: 2px 0 2px 14px; margin: 10px 0; }
-  .challenge .ch-head { font-weight: 600; font-size: 13.5px; margin-bottom: 4px; }
-  .challenge .field { margin: 6px 0; font-size: 14px; }
-  .challenge .field .lbl { display: block; font-size: 11.5px; text-transform: uppercase;
-    letter-spacing: 0.06em; color: var(--ink-faint); margin-bottom: 1px; }
-  .rubric-quote {
-    margin: 4px 0; padding: 6px 12px;
-    background: #f6f4ee; border-left: 3px solid var(--insufficient-fg);
-    border-radius: 0 6px 6px 0; font-size: 13.5px; color: #5c513a;
-  }
-  .rubric-quote::before { content: "Rubric: "; font-weight: 600; font-style: normal;
-    color: var(--insufficient-fg); }
-  .standdown { color: var(--ink-soft); font-style: italic; }
+  #feed { display: flex; flex-direction: column; gap: 10px; }
+  .evt { max-width: 78%; border-radius: 10px; padding: 10px 14px; border: 1px solid; }
+  .evt .who { font-size: 11px; font-weight: 700; text-transform: uppercase;
+              letter-spacing: 0.07em; margin-bottom: 3px; }
+  .evt.A { align-self: flex-start; background: var(--a-bg); border-color: var(--a-line); }
+  .evt.A .who { color: var(--a-ink); }
+  .evt.B { align-self: flex-end; background: var(--b-bg); border-color: var(--b-line); }
+  .evt.B .who { color: var(--b-ink); }
+  .evt.search { font: 12.5px/1.5 var(--mono); padding: 7px 12px; }
+  .evt.concede { border-color: #e3a0a6; }
+  .evt.concede .who { color: var(--bad); }
+  .evt.challenge { border-color: #d9b45e; }
+  .evt .rubricquote { margin-top: 6px; padding: 6px 10px; border-left: 3px solid var(--b-line);
+                      font-size: 12.5px; font-style: italic; color: var(--muted); }
+  .evt .wws { margin-top: 6px; font-size: 12.5px; }
+  .evt .wws b { color: var(--b-ink); }
+  .divider { text-align: center; color: var(--muted); font-size: 12px; font-weight: 700;
+             text-transform: uppercase; letter-spacing: 0.1em; margin: 8px 0;
+             display: flex; align-items: center; gap: 12px; }
+  .divider::before, .divider::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
 
-  .diff { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
-  .diff .lbl { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em;
-    color: var(--ink-faint); margin-bottom: 4px; }
-  .diff ul { margin: 4px 0 0; padding-left: 20px; }
-  .diff li { margin: 3px 0; font-size: 13.5px; }
-  .diff .single { color: var(--ink-faint); font-size: 13px; font-style: italic; }
-  .diff .nochange { color: var(--ink-faint); font-size: 13px; }
-  .diff .reason-change { color: var(--ink-soft); font-size: 12.5px; margin-top: 2px; }
-
-  .empty { color: var(--ink-faint); font-style: italic; padding: 12px 4px; }
-  #error { display: none; color: var(--worsening-fg); font-size: 13px;
-    margin-bottom: 16px; }
+  /* ---- matrix / details ---- */
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line);
+           vertical-align: top; }
+  th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  .chip { display: inline-block; padding: 2px 10px; border-radius: 20px;
+          font-size: 12px; font-weight: 700; }
+  .chip.worsening { background: #fbe9ea; color: var(--bad); }
+  .chip.stable { background: #e8f5ee; color: var(--good); }
+  .chip.improving { background: #e8f0fb; color: var(--a-ink); }
+  .chip.insufficient, .chip.unknown { background: #f1f3f5; color: var(--muted); }
+  blockquote { margin: 6px 0; padding: 6px 12px; border-left: 3px solid var(--a-line);
+               background: #f8fafc; font-size: 13px; }
+  .docref { font: 11.5px var(--mono); color: var(--muted); }
+  details { margin-top: 6px; }
+  summary { cursor: pointer; color: var(--accent); font-size: 13px; }
+  .tracechip { display: inline-block; font: 12px var(--mono); padding: 3px 9px;
+               border-radius: 6px; margin: 2px 2px; background: #f1f3f5; }
+  .tracechip.miss { text-decoration: line-through; color: var(--muted); }
+  .tracechip.hit { background: #e8f5ee; color: var(--good); font-weight: 700; }
+  .arrow { color: var(--muted); margin: 0 2px; }
+  .maincol { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 </style>
 </head>
 <body>
-<main>
-  <header class="page">
-    <h1>Chart Review — Adversarial Loop Viewer</h1>
-    <div class="sub">Agent A assembles the evidence packet; Agent B challenges it from the rubric alone. Polling <code>/state</code> every 2s.</div>
-  </header>
+<header>
+  <h1>Psoriasis Progression Monitor</h1>
+  <span class="sub">two-agent adversarial chart review &middot; every quote verbatim-verified</span>
+  <span id="runlabel"></span>
+</header>
 
-  <div id="error"></div>
-  <div id="banner"></div>
+<div class="wrap">
+  <div>
+    <div class="card">
+      <h2>Chart input</h2>
+      <div class="presets">
+        <button id="p1">Patient chart</button>
+        <button id="p2">Adherent twin</button>
+        <button id="p3">V1&ndash;V2 only</button>
+      </div>
+      <textarea id="notes" spellcheck="false"
+        placeholder="Paste clinical notes here. Separate notes with lines like:&#10;=== visit1_derm_note.md ===&#10;...note text..."></textarea>
+      <button id="runbtn" class="primary">&#9654;&#xFE0E; Run adversarial review</button>
+      <div class="presets" style="margin-top:8px">
+        <button id="replaybtn" style="flex:1">&#8634; Replay cached demo run</button>
+      </div>
+      <div id="runerr"></div>
+      <div class="hint">Agent A assembles evidence from the pasted chart; Agent B
+        (who never sees the chart) challenges it against the rubric.</div>
+    </div>
+  </div>
 
-  <section>
-    <h2>Rubric &times; Status<span class="hint">click a row for evidence</span></h2>
-    <div id="matrix" class="matrix"></div>
-  </section>
+  <div class="maincol">
+    <div class="card" id="progresscard">
+      <div id="phasebar">
+        <div class="track"><div class="fill" id="fill"></div></div>
+        <span id="pct">0%</span>
+      </div>
+      <div id="phaselabel">Idle &mdash; paste a chart and run, or replay the cached demo.</div>
+    </div>
 
-  <section>
-    <h2>Search Trace<span class="hint">where the loop earned its keep — failed queries and the one that landed</span></h2>
-    <div id="trace" class="trace"></div>
-  </section>
+    <div class="card" id="verdict">
+      <div class="headline" id="v-head"></div>
+      <div class="explain" id="v-explain"></div>
+      <div class="settle" id="v-settle" style="display:none"></div>
+    </div>
 
-  <section>
-    <h2>Round Transcript &amp; Packet Diff</h2>
-    <div id="transcript"></div>
-  </section>
-</main>
+    <div class="card">
+      <h2>Agent transcript</h2>
+      <div id="feed"></div>
+    </div>
+
+    <div class="card">
+      <h2>Evidence packet</h2>
+      <table id="matrix"><thead>
+        <tr><th style="width:36px">#</th><th>Criterion</th><th style="width:120px">Status</th></tr>
+      </thead><tbody></tbody></table>
+    </div>
+
+    <div class="card">
+      <h2>Search trace &mdash; how Agent A found the buried findings</h2>
+      <div id="trace"></div>
+    </div>
+  </div>
+</div>
 
 <script>
-(function () {
-  "use strict";
+"use strict";
+const $ = id => document.getElementById(id);
+let cursor = 0, activePid = null, presets = null, terminalSeen = null;
+let progress = 0, ticks = 0;
 
-  var expanded = {};        // criterion_id -> true, survives re-renders
-  var lastPayload = null;   // skip re-render when nothing changed
+fetch("/presets").then(r => r.json()).then(p => { presets = p; });
+$("p1").onclick = () => setPreset("patient1", "patient1");
+$("p2").onclick = () => setPreset("patient1_twin", "patient1_twin");
+$("p3").onclick = () => setPreset("v1_v2_slice", "v1_v2_slice");
+function setPreset(key, label) {
+  if (!presets) return;
+  $("notes").value = presets[key];
+  $("notes").dataset.label = label;
+}
 
-  function esc(s) {
-    return String(s == null ? "" : s)
-      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+$("runbtn").onclick = () => startRun({
+  notes_text: $("notes").value,
+  label: $("notes").dataset.label || "pasted_chart"
+});
+$("replaybtn").onclick = () => startRun({ replay: true });
+
+async function startRun(body) {
+  $("runerr").textContent = "";
+  const r = await fetch("/run", { method: "POST",
+    headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const j = await r.json();
+  if (!j.ok) { $("runerr").textContent = j.error || "run failed"; return; }
+  activePid = j.patient_id;
+  cursor = 0; ticks = 0; progress = 0; terminalSeen = null;
+  $("feed").innerHTML = "";
+  $("verdict").className = "card";
+  $("fill").className = "fill";
+  setProgress(2, "Starting run for " + activePid + "…");
+  $("runbtn").disabled = true; $("replaybtn").disabled = true;
+}
+
+function setProgress(p, label) {
+  progress = Math.max(progress, Math.min(p, terminalSeen ? 100 : 95));
+  $("fill").style.width = progress + "%";
+  $("pct").textContent = Math.round(progress) + "%";
+  if (label) $("phaselabel").textContent = label;
+}
+
+function esc(s) { const d = document.createElement("div"); d.textContent = s == null ? "" : String(s); return d.innerHTML; }
+
+function addEvent(e) {
+  const feed = $("feed");
+  if (e.type === "start") { return; }
+  if (e.type === "tick") {
+    ticks += 1;
+    setProgress(2 + ticks * 9, "Agent A: evidence gathered for criterion " + ((e.data || {}).criterion));
+    return;
+  }
+  if (e.type === "round") {
+    const d = document.createElement("div");
+    d.className = "divider"; d.textContent = e.text;
+    feed.appendChild(d);
+    setProgress(55 + (((e.data || {}).round || 1) - 1) * 14, e.text);
+    autoscroll(); return;
+  }
+  if (e.type === "terminal") {
+    terminalSeen = e.text;
+    const d = document.createElement("div");
+    d.className = "divider"; d.textContent = "verdict: " + e.text.split("_").join(" ");
+    feed.appendChild(d);
+    setProgress(100, "Run complete — " + e.text.split("_").join(" "));
+    $("fill").classList.add(e.text === "CONFIRMED_WORSENING" ? "done-bad" :
+                            e.text === "STABLE" ? "done-stable" : "done-good");
+    $("runbtn").disabled = false; $("replaybtn").disabled = false;
+    autoscroll(); return;
+  }
+  if (e.type === "error") {
+    $("runerr").textContent = e.text;
+    $("runbtn").disabled = false; $("replaybtn").disabled = false;
+    return;
   }
 
-  var STATUSES = { worsening: 1, stable: 1, improving: 1, insufficient: 1 };
-  function chip(status) {
-    var s = STATUSES[status] ? status : "unknown";
-    return '<span class="chip s-' + s + '">' + esc(status || "?") + '</span>';
+  const div = document.createElement("div");
+  div.className = "evt " + e.actor + " " + e.type;
+  const who = e.actor === "A" ? "Agent A — assembler" :
+              e.actor === "B" ? "Agent B — reviewer" : "system";
+  let inner = '<div class="who">' + who + "</div>" + esc(e.text);
+  if (e.type === "challenge" && e.data) {
+    if (e.data.rubric_quote)
+      inner += '<div class="rubricquote">rubric: “' + esc(e.data.rubric_quote) + '”</div>';
+    if (e.data.what_would_satisfy)
+      inner += '<div class="wws"><b>What would satisfy B:</b> ' + esc(e.data.what_would_satisfy) + "</div>";
   }
+  div.innerHTML = inner;
+  feed.appendChild(div);
 
-  /* ---- 1. banner ---- */
-  function renderBanner(st) {
-    var t = st.terminal_state;
-    var cls = t ? "t-" + t : "t-progress";
-    var verdict = t ? t.replace(/_/g, " ") : "IN PROGRESS";
-    document.getElementById("banner").innerHTML =
-      '<div class="banner ' + esc(cls) + '">' +
-        '<span class="verdict">' + esc(verdict) + '</span>' +
-        '<span class="meta">patient <strong>' + esc(st.patient_id) + '</strong>' +
-        ' &middot; round ' + esc(st.round) + '</span>' +
-      '</div>';
+  if (e.type === "phase" && e.actor === "A" && e.text.indexOf("reading") >= 0)
+    setProgress(4, "Agent A is searching the chart…");
+  if (e.type === "info" && e.text.indexOf("drafting") >= 0)
+    setProgress(50, "Agent A is drafting the packet…");
+  if (e.type === "phase" && e.actor === "B") setProgress(progress + 4, "Agent B is reviewing…");
+  if (e.type === "challenge") setProgress(progress + 4, "Agent B has challenged the packet");
+  if (e.type === "concede") setProgress(progress + 4, "Agent A concedes");
+  autoscroll();
+}
+function autoscroll() {
+  window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+}
+
+/* ---------- verdict + detail panels from /state ---------- */
+function pasiTrend(packet) {
+  const item1 = (packet || []).find(e => e.criterion_id === 1);
+  if (!item1) return "";
+  const seen = [];
+  (item1.evidence || []).forEach(ev => {
+    const m = /PASI\s+(\d+(?:\.\d+)?)/.exec(ev.quote || "");
+    if (m) seen.push([ev.date || "", m[1]]);
+  });
+  seen.sort((a, b) => a[0].localeCompare(b[0]));
+  return seen.map(s => s[1]).join(" → ");
+}
+
+function renderVerdict(st) {
+  const v = $("verdict");
+  if (!st || !st.terminal_state) { v.className = "card"; return; }
+  v.className = "card show " + st.terminal_state;
+  const packet = st.packet || [];
+  const pasi = pasiTrend(packet);
+  const item5 = packet.find(e => e.criterion_id === 5) || {};
+  const conf = (st.challenges || []).flat().find(c => c.criterion_id === 5) || {};
+  let head, explain, settle = "";
+  if (st.terminal_state === "INSUFFICIENT_EVIDENCE") {
+    head = "⚠︎ Worsening cannot be confirmed yet";
+    explain = "The objective numbers clearly worsened" +
+      (pasi ? ' (<span class="pasi">PASI ' + pasi + "</span>)" : "") +
+      ", but the chart cannot rule out a confounder — the disease can’t be " +
+      "blamed until the missed treatment is accounted for. Agent A conceded this " +
+      "under challenge from Agent B.";
+    settle = conf.what_would_satisfy ||
+      ((item5.reasoning || "").split("Documentation that would settle it:")[1] || "");
+  } else if (st.terminal_state === "CONFIRMED_WORSENING") {
+    head = "\u{1F534} Disease progression confirmed";
+    explain = "Objective severity worsened" +
+      (pasi ? ' (<span class="pasi">PASI ' + pasi + "</span>)" : "") +
+      " with treatment adherence verified and no unaddressed confounder. " +
+      "Agent B reviewed the packet and stood down — the worsening claim " +
+      "survived adversarial review.";
+  } else {
+    head = "\u{1F7E2} Disease stable";
+    explain = "No meaningful change in severity, symptoms, or quality of life " +
+      (pasi ? '(<span class="pasi">PASI ' + pasi + "</span>) " : "") +
+      "across the reviewed interval.";
   }
+  $("v-head").innerHTML = head;
+  $("v-explain").innerHTML = explain;
+  const s = String(settle || "").trim();
+  if (s) {
+    $("v-settle").style.display = "";
+    $("v-settle").innerHTML = "<b>What would settle it</b>" + esc(s);
+  } else { $("v-settle").style.display = "none"; }
+}
 
-  /* ---- 2. matrix + expandable evidence ---- */
-  function renderMatrix(st) {
-    var packet = st.packet || [];
-    if (!packet.length) {
-      document.getElementById("matrix").innerHTML =
-        '<div class="empty">No packet items yet.</div>';
-      return;
-    }
-    var html = packet.map(function (item) {
-      var cid = item.criterion_id;
-      var open = expanded[cid] ? " open" : "";
-      var ev = (item.evidence || []).map(function (e) {
-        return '<blockquote>' + esc(e.quote) + '</blockquote>' +
-          '<div class="src"><code>' + esc(e.doc_id) + '</code> &middot; ' +
-          esc(e.date) + '</div>';
-      }).join("");
-      if (!ev) ev = '<div class="evidence-none">No evidence recorded.</div>';
-      return '<div class="item' + open + '" data-cid="' + esc(cid) + '">' +
-        '<button class="item-row" type="button">' +
-          '<span class="cid">' + esc(cid) + '</span>' +
-          chip(item.status) +
-          '<span class="crit">' + esc(item.criterion_text) + '</span>' +
-          '<span class="caret">&#9654;</span>' +
-        '</button>' +
-        '<div class="item-detail">' +
-          '<div class="evidence">' + ev + '</div>' +
-          (item.reasoning
-            ? '<div class="reasoning"><span class="lbl">Reasoning</span> ' +
-              esc(item.reasoning) + '</div>' : "") +
-          (item.rubric_ref
-            ? '<div class="rubric-ref">rubric ref ' + esc(item.rubric_ref) + '</div>' : "") +
-        '</div>' +
-      '</div>';
-    }).join("");
-    var el = document.getElementById("matrix");
-    el.innerHTML = html;
-    Array.prototype.forEach.call(el.querySelectorAll(".item-row"), function (btn) {
-      btn.addEventListener("click", function () {
-        var item = btn.parentNode;
-        var cid = item.getAttribute("data-cid");
-        if (expanded[cid]) { delete expanded[cid]; item.classList.remove("open"); }
-        else { expanded[cid] = true; item.classList.add("open"); }
-      });
+function renderMatrix(st) {
+  const tb = $("matrix").querySelector("tbody");
+  tb.innerHTML = "";
+  (st.packet || []).forEach(e => {
+    const tr = document.createElement("tr");
+    const evid = (e.evidence || []).map(ev =>
+      "<blockquote>“" + esc(ev.quote) + '”<br><span class="docref">' +
+      esc(ev.doc_id) + " · " + esc(ev.date) + "</span></blockquote>").join("");
+    tr.innerHTML = "<td>" + e.criterion_id + "</td><td>" + esc(e.criterion_text) +
+      "<details><summary>evidence &amp; reasoning</summary>" + evid +
+      '<div style="font-size:13px;color:var(--muted)">' + esc(e.reasoning) +
+      "</div></details></td>" +
+      '<td><span class="chip ' + esc(e.status) + '">' + esc(e.status) + "</span></td>";
+    tb.appendChild(tr);
+  });
+}
+
+function renderTrace(st) {
+  const box = $("trace");
+  box.innerHTML = "";
+  (st.search_trace || []).forEach(t => {
+    const div = document.createElement("div");
+    div.style.marginBottom = "6px";
+    let html = '<span class="docref">criterion ' + t.criterion_id + ":</span> ";
+    const attempts = t.attempts || [];
+    attempts.forEach((q, i) => {
+      const cls = t.resolved_in == null ? "miss" :
+                  (i < attempts.length - 1 ? "miss" : "hit");
+      html += '<span class="tracechip ' + cls + '">' + esc(q) + "</span>";
+      if (i < attempts.length - 1) html += '<span class="arrow">→</span>';
     });
-  }
+    html += t.resolved_in
+      ? ' <span class="docref">found in <b>' + esc(t.resolved_in) + "</b></span>"
+      : ' <span class="docref">unresolved</span>';
+    div.innerHTML = html;
+    box.appendChild(div);
+  });
+}
 
-  /* ---- 3. search trace ---- */
-  function renderTrace(st) {
-    var trace = st.search_trace || [];
-    if (!trace.length) {
-      document.getElementById("trace").innerHTML =
-        '<div class="empty">No search-trace entries.</div>';
-      return;
+/* ---------- polling ---------- */
+let lastStateJson = "";
+async function pollEvents() {
+  try {
+    const r = await fetch("/events?after=" + cursor);
+    const j = await r.json();
+    (j.events || []).forEach(addEvent);
+    cursor = j.next || cursor;
+    if (!j.running && terminalSeen === null && cursor > 0) {
+      $("runbtn").disabled = false; $("replaybtn").disabled = false;
     }
-    document.getElementById("trace").innerHTML = trace.map(function (t) {
-      var attempts = t.attempts || [];
-      var resolvedIdx = t.resolved_in != null ? attempts.length - 1 : -1;
-      var chips = attempts.map(function (q, i) {
-        var cls = i === resolvedIdx ? "q hit" : "q failed";
-        return '<span class="' + cls + '">' + esc(q) + '</span>';
-      }).join('<span class="arrow">&rarr;</span>');
-      var resolved = t.resolved_in != null
-        ? 'resolved in <code>' + esc(t.resolved_in) + '</code>'
-        : '<span class="miss">unresolved</span>';
-      return '<div class="trace-entry">' +
-        '<span class="tcid">criterion ' + esc(t.criterion_id) + '</span>' +
-        chips +
-        '<span class="resolved">' + resolved + '</span>' +
-      '</div>';
-    }).join("");
-  }
-
-  /* ---- 4. transcript + diff ---- */
-  function statusOf(state, cid) {
-    var p = (state && state.packet) || [];
-    for (var i = 0; i < p.length; i++)
-      if (p[i].criterion_id === cid) return p[i];
-    return null;
-  }
-
-  function diffPackets(prev, cur) {
-    var out = [];
-    (cur.packet || []).forEach(function (item) {
-      var before = statusOf(prev, item.criterion_id);
-      if (!before) {
-        out.push('<li>item ' + esc(item.criterion_id) + ': new &rarr; ' +
-          chip(item.status) + '</li>');
-        return;
+    if (j.error) $("runerr").textContent = j.error;
+  } catch (e) { /* server restarting; keep polling */ }
+  setTimeout(pollEvents, 1000);
+}
+async function pollState() {
+  try {
+    const r = await fetch("/state");
+    const j = await r.json();
+    if (j.latest) {
+      const key = JSON.stringify(j.latest);
+      if (key !== lastStateJson) {
+        lastStateJson = key;
+        $("runlabel").textContent = j.latest.patient_id + " · round " + j.latest.round;
+        renderVerdict(j.latest);
+        renderMatrix(j.latest);
+        renderTrace(j.latest);
       }
-      var statusChanged = before.status !== item.status;
-      var reasonChanged = before.reasoning !== item.reasoning;
-      if (!statusChanged && !reasonChanged) return;
-      var line = '<li>item ' + esc(item.criterion_id) + ': ';
-      line += statusChanged
-        ? chip(before.status) + ' <span class="arrow">&rarr;</span> ' + chip(item.status)
-        : chip(item.status) + ' (unchanged)';
-      if (reasonChanged) {
-        line += '<div class="reason-change">reasoning changed: &ldquo;' +
-          esc(item.reasoning) + '&rdquo;</div>';
-      }
-      out.push(line + '</li>');
-    });
-    return out;
-  }
-
-  function renderTranscript(payload) {
-    var st = payload.latest;
-    var rounds = payload.rounds || [];
-    var byRound = {};
-    rounds.forEach(function (r) { if (r) byRound[r.round] = r; });
-    var multi = rounds.length > 1;
-
-    // challenges is a LIST OF PER-ROUND LISTS: challenges[i] = round i+1
-    var perRound = st.challenges || [];
-    if (!perRound.length) {
-      document.getElementById("transcript").innerHTML =
-        '<div class="empty">No review rounds yet (round 0 &mdash; assembly only).</div>';
-      return;
     }
-
-    document.getElementById("transcript").innerHTML =
-      perRound.map(function (chs, i) {
-        var roundNo = i + 1;
-        var body;
-        if (!chs || !chs.length) {
-          body = '<div class="standdown">Agent B stands down &mdash; no challenges this round.</div>';
-        } else {
-          body = chs.map(function (c) {
-            return '<div class="challenge">' +
-              '<div class="ch-head">Challenge on criterion ' + esc(c.criterion_id) + '</div>' +
-              '<div class="field"><span class="lbl">Challenge reason</span>' +
-                esc(c.challenge_reason) + '</div>' +
-              '<div class="rubric-quote">&ldquo;' + esc(c.rubric_quote) + '&rdquo;</div>' +
-              '<div class="field"><span class="lbl">What would satisfy</span>' +
-                esc(c.what_would_satisfy) + '</div>' +
-            '</div>';
-          }).join("");
-        }
-
-        var diffHtml;
-        if (multi && byRound[roundNo] && byRound[roundNo - 1]) {
-          var changes = diffPackets(byRound[roundNo - 1], byRound[roundNo]);
-          diffHtml = changes.length
-            ? '<ul>' + changes.join("") + '</ul>'
-            : '<div class="nochange">No packet changes this round.</div>';
-        } else if (multi) {
-          diffHtml = '<div class="single">Snapshot for round ' + roundNo +
-            ' not available &mdash; diff skipped.</div>';
-        } else {
-          diffHtml = '<div class="single">single snapshot &mdash; status diff available during live runs</div>';
-        }
-
-        return '<div class="round">' +
-          '<h3>Round ' + roundNo + ' <span class="who">&mdash; Agent B review</span></h3>' +
-          body +
-          '<div class="diff"><div class="lbl">Packet diff (round ' + (roundNo - 1) +
-            ' &rarr; ' + roundNo + ')</div>' + diffHtml + '</div>' +
-        '</div>';
-      }).join("");
-  }
-
-  function render(payload) {
-    if (!payload || !payload.latest) {
-      document.getElementById("banner").innerHTML =
-        '<div class="banner t-progress"><span class="verdict">NO DATA</span>' +
-        '<span class="meta">waiting for a run to appear in runs/</span></div>';
-      return;
-    }
-    renderBanner(payload.latest);
-    renderMatrix(payload.latest);
-    renderTrace(payload.latest);
-    renderTranscript(payload);
-  }
-
-  function poll() {
-    fetch("/state").then(function (r) { return r.json(); }).then(function (data) {
-      document.getElementById("error").style.display = "none";
-      var s = JSON.stringify(data);
-      if (s === lastPayload) return;   // keep expanded rows stable when idle
-      lastPayload = s;
-      render(data);
-    }).catch(function (err) {
-      var el = document.getElementById("error");
-      el.textContent = "Failed to fetch /state: " + err;
-      el.style.display = "block";
-    });
-  }
-
-  poll();
-  setInterval(poll, 2000);
-})();
+  } catch (e) { /* ignore */ }
+  setTimeout(pollState, 2000);
+}
+pollEvents(); pollState();
 </script>
 </body>
 </html>

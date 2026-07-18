@@ -23,6 +23,9 @@ RUNS_DIR = os.path.join(_REPO_ROOT, "runs")
 RUBRIC_PATH = os.path.join(_REPO_ROOT, "rubric.json")
 
 # Rubric items whose failure alone forces INSUFFICIENT_EVIDENCE.
+import events
+
+
 def _load_rubric() -> list:
     with open(RUBRIC_PATH, "r") as f:
         return json.load(f)
@@ -84,37 +87,69 @@ def run(patient_dir: str, assemble=None, review=None, repair=None) -> dict:
 
     rubric = _load_rubric()
     patient_id = os.path.basename(os.path.normpath(patient_dir))
-
-    # Round 0: assemble.
-    run_state = assemble(rubric, patient_dir)
-    run_state["patient_id"] = patient_id
-    run_state["round"] = 0
-    run_state["terminal_state"] = None
-    run_state.setdefault("packet", [])
-    run_state.setdefault("challenges", [])
-    run_state.setdefault("search_trace", [])
-    _persist_round(run_state)
-
-    # Rounds 1..MAX_ROUNDS: review / repair.
-    for round_num in range(1, MAX_ROUNDS + 1):
-        challenges = review(run_state["packet"], rubric)
-        run_state["challenges"].append(challenges)
-        run_state["round"] = round_num
-
-        if not challenges:
-            # B stands down: terminal NOW, regardless of round count.
-            run_state["terminal_state"] = _compute_terminal(run_state["packet"])
-            _persist_round(run_state)
-            _persist_final(run_state)
-            return run_state
-
-        run_state["packet"] = repair(run_state["packet"], challenges, patient_dir)
+    events.start_run(patient_id)
+    try:
+        # Round 0: assemble.
+        run_state = assemble(rubric, patient_dir)
+        run_state["patient_id"] = patient_id
+        run_state["round"] = 0
+        run_state["terminal_state"] = None
+        run_state.setdefault("packet", [])
+        run_state.setdefault("challenges", [])
+        run_state.setdefault("search_trace", [])
         _persist_round(run_state)
 
-    # Round cap reached with B still challenging: terminal on current packet.
-    run_state["terminal_state"] = _compute_terminal(run_state["packet"])
-    _persist_final(run_state)
-    return run_state
+        # Rounds 1..MAX_ROUNDS: review / repair.
+        challenge_rounds_by_cid = {}
+        for round_num in range(1, MAX_ROUNDS + 1):
+            events.emit("sys", "round", "Round %d: adversarial review" % round_num,
+                        round=round_num)
+            challenges = review(run_state["packet"], rubric)
+            run_state["challenges"].append(challenges)
+            run_state["round"] = round_num
+
+            if not challenges:
+                # B stands down: terminal NOW, regardless of round count.
+                run_state["terminal_state"] = _compute_terminal(run_state["packet"])
+                _persist_round(run_state)
+                _persist_final(run_state)
+                events.emit("sys", "terminal", run_state["terminal_state"],
+                            terminal=run_state["terminal_state"], round=round_num)
+                return run_state
+
+            run_state["packet"] = repair(run_state["packet"], challenges, patient_dir)
+
+            # Two-strikes rule: if B challenges the same criterion in a second
+            # round, A's repair has already had its one full chance and failed
+            # to convince — force the concession rather than looping to the
+            # cap on an unwinnable point.
+            for challenge in challenges:
+                cid = challenge.get("criterion_id")
+                challenge_rounds_by_cid[cid] = challenge_rounds_by_cid.get(cid, 0) + 1
+                if challenge_rounds_by_cid[cid] >= 2:
+                    for entry in run_state["packet"]:
+                        if entry.get("criterion_id") == cid and \
+                                entry.get("status") != "insufficient":
+                            entry["status"] = "insufficient"
+                            entry["reasoning"] = (
+                                "Conceded after repeated challenge: two repair "
+                                "attempts could not satisfy Agent B. "
+                                + str(challenge.get("what_would_satisfy", ""))
+                            )
+                            events.emit(
+                                "sys", "info",
+                                "Two-strikes rule: item %s challenged twice — "
+                                "concession forced" % cid, criterion=cid)
+            _persist_round(run_state)
+
+        # Round cap reached with B still challenging: terminal on current packet.
+        run_state["terminal_state"] = _compute_terminal(run_state["packet"])
+        _persist_final(run_state)
+        events.emit("sys", "terminal", run_state["terminal_state"],
+                    terminal=run_state["terminal_state"], round=run_state["round"])
+        return run_state
+    finally:
+        events.stop_run()
 
 
 if __name__ == "__main__":

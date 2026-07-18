@@ -22,12 +22,18 @@ Rules — these are hard constraints:
    alter a quote.
 2. If "new_evidence" for a challenged criterion actually satisfies the
    challenge (per its what_would_satisfy), attach it and update the status and
-   reasoning accordingly.
+   reasoning accordingly. Satisfying means the quotes contain the SPECIFIC
+   fact the challenge asked for. Quotes that merely restate the confounder,
+   or that document worsening in an EARLIER interval than the confounded one,
+   do NOT satisfy a confounder challenge — the rubric requires precedence for
+   the most recent worsening interval specifically.
 3. If the chart could NOT satisfy the challenge (new_evidence is empty or does
    not meet what_would_satisfy), you MUST concede: set that criterion's status
    to "insufficient" and rewrite its reasoning to (a) state the concession
    plainly and (b) state exactly what documentation would settle the question
-   (start from the challenge's what_would_satisfy).
+   (start from the challenge's what_would_satisfy). When in doubt whether the
+   new evidence truly satisfies the challenge, concede — a defensible
+   concession beats an overreaching claim.
 4. Leave unchallenged items unchanged unless a concession makes their
    reasoning inconsistent.
 5. status must be exactly one of: "worsening" | "stable" | "improving" | "insufficient".

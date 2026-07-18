@@ -38,6 +38,19 @@ Hard constraints:
 5. "insufficient" statuses that honestly concede a gap and state what would
    settle it are already conceded — do not re-challenge a concession unless the
    packet elsewhere contradicts it.
+6. File challenges under the criterion whose rubric rule is violated. When a
+   measurement item (severity scores, symptoms, DLQI) conflicts with the
+   confounder criterion, the measurements themselves are not in dispute — the
+   ATTRIBUTION is. File that challenge under the confounder criterion's id and
+   quote the confounder rule; do not ask a measurement item to be conceded
+   because of a confounder.
+7. Interval discipline for confounders: the worsening being attributed is the
+   one shown by the LATEST dated evidence in the packet. If that latest
+   evidence postdates an unexcluded confounder documented in the packet, a
+   precedence argument built on EARLIER worsening (an older visit's scores)
+   does not address the confounder — the packet must date the onset of the
+   latest deterioration before the confounder began, or exclude the confounder
+   outright. Reject precedence-by-earlier-interval arguments.
 
 Output: respond with ONLY a JSON array (no prose, no code fences). Each
 challenge is shaped exactly like:

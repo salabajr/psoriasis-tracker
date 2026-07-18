@@ -32,6 +32,8 @@ try:  # tools.py is written by a sibling workstream and may not exist yet
 except Exception:  # pragma: no cover - absence/breakage of sibling module
     TOOLS = None
 
+import events  # no-op unless orchestrator started an event stream
+
 _client = None
 
 STATUS_VOCAB = {"worsening", "stable", "improving", "insufficient"}
@@ -312,6 +314,7 @@ def _search_criterion(rubric_item: dict, corpus_dir: str):
             break
         already_resolved = resolved_in is not None
         added = 0
+        attempt_docs = set()
         attempts.append(query)
         try:
             results = tools_mod.chart_search(query, corpus_dir) or []
@@ -331,14 +334,34 @@ def _search_criterion(rubric_item: dict, corpus_dir: str):
                     seen.add((doc_id, quote))
                     candidates.append({"doc_id": doc_id, "quote": quote, "date": date})
                     added += 1
+                    attempt_docs.add(doc_id)
                     if resolved_in is None:
                         resolved_in = doc_id
             except Exception:
                 continue
+        if added:
+            events.emit(
+                "A", "search",
+                'Criterion %s: searched "%s" — %d verified quote(s) from %s'
+                % (rubric_item["id"], query, added, ", ".join(sorted(attempt_docs))),
+                criterion=rubric_item["id"], query=query, hits=added,
+            )
+        else:
+            events.emit(
+                "A", "search",
+                'Criterion %s: searched "%s" — no hits%s'
+                % (rubric_item["id"], query,
+                   "" if already_resolved else ", reformulating"),
+                criterion=rubric_item["id"], query=query, hits=0,
+            )
         if already_resolved and added == 0:
             # A post-resolution triangulation query that contributed nothing
             # does not belong in the trace of attempts that shaped the packet.
             attempts.pop()
+    events.emit(
+        "A", "tick", "Criterion %s: evidence gathered" % rubric_item["id"],
+        criterion=rubric_item["id"], resolved_in=resolved_in,
+    )
     trace = {
         "criterion_id": rubric_item["id"],
         "attempts": attempts,
@@ -349,6 +372,9 @@ def _search_criterion(rubric_item: dict, corpus_dir: str):
 
 def assemble(rubric: list, corpus_dir: str) -> dict:
     """Build the round-0 run_state: search the chart, then draft the packet."""
+    events.emit("A", "phase",
+                "Agent A is reading the chart and gathering evidence for "
+                "%d rubric criteria" % len(rubric))
     search_trace = []
     candidates_by_id = {}
     for item in rubric:
@@ -377,6 +403,8 @@ def assemble(rubric: list, corpus_dir: str) -> dict:
         + json.dumps(user_payload, indent=2)
         + "\n\nBuild the evidence packet now. JSON array only."
     )
+    events.emit("A", "info", "Agent A is drafting the evidence packet from the "
+                             "verified quotes…")
     raw = _call_claude(system_blocks, user_content)
     if isinstance(raw, dict):
         raw = raw.get("packet") or raw.get("entries") or []
@@ -396,6 +424,10 @@ def assemble(rubric: list, corpus_dir: str) -> dict:
             _normalize_entry(by_id.get(item["id"]), item, corpus_dir, allowed)
         )
 
+    events.emit(
+        "A", "packet", "Evidence packet assembled",
+        statuses={str(e["criterion_id"]): e["status"] for e in packet},
+    )
     return {
         "patient_id": os.path.basename(os.path.normpath(corpus_dir)),
         "round": 0,
@@ -510,6 +542,18 @@ def _guard_challenges(raw, packet: list, rubric: list):
         if vios:
             violations.extend(vios)
             continue
+        # A challenge belongs to the rubric item whose rule it quotes: if the
+        # quoted rubric text lives in exactly one other item, remap. (Keeps
+        # confounder contradictions filed on the confounder criterion, not on
+        # the measurement item they conflict with.)
+        quote_norm = _norm_ws(fields["rubric_quote"])
+        owners = [
+            item["id"] for item in rubric
+            if quote_norm and quote_norm in
+            _norm_ws(str(item.get("text", "")) + " " + str(item.get("how", "")))
+        ]
+        if len(owners) == 1 and owners[0] != cid and owners[0] in packet_ids:
+            cid = owners[0]
         kept.append(
             {
                 "criterion_id": cid,
@@ -521,6 +565,29 @@ def _guard_challenges(raw, packet: list, rubric: list):
     return kept, violations, attempted
 
 
+def _trunc(s, n: int) -> str:
+    s = str(s or "")
+    if len(s) <= n:
+        return s
+    return s[:n].rsplit(" ", 1)[0] + " …"
+
+
+def _emit_review_result(challenges: list) -> list:
+    if not challenges:
+        events.emit("B", "standdown",
+                    "Agent B stands down — the packet is airtight under the rubric")
+    for c in challenges:
+        events.emit(
+            "B", "challenge",
+            "Agent B challenges item %s: %s"
+            % (c.get("criterion_id"), _trunc(c.get("challenge_reason"), 320)),
+            criterion=c.get("criterion_id"),
+            rubric_quote=_trunc(c.get("rubric_quote"), 300),
+            what_would_satisfy=_trunc(c.get("what_would_satisfy"), 400),
+        )
+    return challenges
+
+
 def review(packet: list, rubric: list) -> list:
     """Agent B: challenge the packet, or stand down with [].
 
@@ -530,6 +597,9 @@ def review(packet: list, rubric: list) -> list:
     while the model clearly attempted a challenge, retry once with the
     violations explained; if it still fails, give up and return [].
     """
+    events.emit("B", "phase",
+                "Agent B is reviewing the packet — packet + rubric only, "
+                "no chart access")
     system_blocks = _system_blocks("review", rubric_json=json.dumps(rubric, indent=2))
     user_content = (
         "EVIDENCE PACKET UNDER REVIEW:\n"
@@ -540,10 +610,10 @@ def review(packet: list, rubric: list) -> list:
     try:
         raw = _call_claude(system_blocks, user_content)
     except (ValueError, json.JSONDecodeError):
-        return []  # unusable output -> stand down rather than fabricate
+        return _emit_review_result([])  # unusable output -> stand down
     kept, violations, attempted = _guard_challenges(raw, packet, rubric)
     if kept or not attempted:
-        return kept
+        return _emit_review_result(kept)
     # Guard stripped everything but the model clearly tried to challenge:
     # retry once with the violations explained, then give up.
     retry_content = (
@@ -555,12 +625,15 @@ def review(packet: list, rubric: list) -> list:
         "you mention must already appear in the packet above. Re-issue only "
         "challenges grounded in the packet, or return [] to stand down."
     )
+    events.emit("B", "info",
+                "Contract guard rejected Agent B's draft challenges "
+                "(referenced material outside the packet) — retrying once")
     try:
         raw2 = _call_claude(system_blocks, retry_content)
     except (ValueError, json.JSONDecodeError):
-        return []
+        return _emit_review_result([])
     kept2, _, _ = _guard_challenges(raw2, packet, rubric)
-    return kept2
+    return _emit_review_result(kept2)
 
 
 # ---------------------------------------------------------------------------
@@ -606,6 +679,9 @@ def repair(packet: list, challenges: list, corpus_dir: str) -> list:
     """
     tools_mod = _get_tools()
     challenges = [c for c in (challenges or []) if isinstance(c, dict)]
+    events.emit("A", "phase",
+                "Agent A is repairing the packet — targeting what would "
+                "satisfy %d challenge(s)" % len(challenges))
 
     new_evidence = {}
     for challenge in challenges:
@@ -634,6 +710,19 @@ def repair(packet: list, challenges: list, corpus_dir: str) -> list:
             if found:
                 break
         new_evidence[cid] = found
+        if found:
+            events.emit(
+                "A", "search",
+                "Repair item %s: found %d new verified quote(s)" % (cid, len(found)),
+                criterion=cid, hits=len(found),
+            )
+        else:
+            events.emit(
+                "A", "search",
+                "Repair item %s: the chart has nothing that satisfies the "
+                "challenge" % cid,
+                criterion=cid, hits=0,
+            )
 
     rubric = None
     try:
@@ -706,6 +795,12 @@ def repair(packet: list, challenges: list, corpus_dir: str) -> list:
         challenge = challenge_by_id.get(cid)
         if challenge is not None and not new_evidence.get(cid):
             # The chart could not satisfy the challenge: force the concession.
+            events.emit(
+                "A", "concede",
+                "Agent A concedes item %s — the chart cannot answer the "
+                "challenge; status set to insufficient" % cid,
+                criterion=cid,
+            )
             entry["status"] = "insufficient"
             reasoning = entry.get("reasoning", "")
             wws = str(challenge.get("what_would_satisfy", "")).strip()
