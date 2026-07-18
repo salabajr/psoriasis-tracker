@@ -4,8 +4,10 @@ GET  /        -> static/index.html
 GET  /state   -> {"latest": <run_state|null>, "rounds": [...]}  (unchanged)
 GET  /events?after=N -> {"events": [...], "next": M, "running": bool}
 GET  /presets -> {"patient1": <text>, "patient1_twin": <text>, "v1_v2_slice": <text>}
-POST /run     -> {"notes_text": "...", "label": "..."} start a live run
-                 {"replay": true} replay the committed patient1 demo run
+POST /run     -> {"notes_text": "...", "label": "..."} — one Run entry point.
+                 If the pasted chart matches a preset with a recording in
+                 runs/cached/, its event stream replays time-compressed to
+                 ~1 minute; any other (new/edited) chart runs the models live.
 """
 
 import json
@@ -25,6 +27,8 @@ import events as events_mod
 
 BASE_DIR = Path(__file__).resolve().parent
 RUNS_DIR = BASE_DIR / "runs"
+CACHE_DIR = RUNS_DIR / "cached"      # recorded live runs used for fast replay
+REPLAY_TARGET_SECONDS = 55.0         # cached demo plays end-to-end in ~1 min
 STATIC_DIR = BASE_DIR / "static"
 CORPUS_DIR = BASE_DIR / "corpus"
 FIXTURE_PATH = BASE_DIR / "fixtures" / "fixture_runstate.json"
@@ -111,15 +115,26 @@ def get_events(after: int = 0):
     path = RUNS_DIR / ("%s_events.jsonl" % pid) if pid else None
     if path is None or not path.exists():
         # Fall back to the patient whose round files are newest (matches /state).
+        pid = None
         latest, _ = _collect_runs()
         if latest:
             candidate = RUNS_DIR / ("%s_events.jsonl" % latest.get("patient_id"))
-            path = candidate if candidate.exists() else None
+            if candidate.exists():
+                path, pid = candidate, latest.get("patient_id")
     evts = []
+    run_id = None
     if path is not None:
         try:
             with path.open("r", encoding="utf-8") as f:
                 lines = f.readlines()
+            if lines:
+                try:
+                    # The stream's identity: its opening "start" event's
+                    # timestamp. A same-patient restart truncates the file and
+                    # gets a fresh timestamp, so the UI can detect it.
+                    run_id = json.loads(lines[0]).get("t")
+                except (json.JSONDecodeError, AttributeError):
+                    run_id = None
             for line in lines[after:]:
                 line = line.strip()
                 if not line:
@@ -132,6 +147,7 @@ def get_events(after: int = 0):
         except OSError:
             pass
     return JSONResponse({"events": evts, "next": after,
+                         "pid": pid, "run_id": run_id,
                          "running": _is_running(),
                          "error": _active["error"]})
 
@@ -221,89 +237,65 @@ def _run_live(notes, pid, images_from=""):
         shutil.rmtree(corpus_root, ignore_errors=True)
 
 
-def _run_replay():
-    """Replay the committed patient1 demo run with theatrical pacing."""
-    pid = "patient1_replay"
-    src = [RUNS_DIR / ("patient1_round%d.json" % r) for r in range(0, 3)]
-    final = RUNS_DIR / "patient1_final.json"
+def _cached_source(notes_text: str):
+    """Return the preset pid whose chart text exactly matches the pasted notes
+    AND has a recording in runs/cached/ — else None (run live)."""
+    key = (notes_text or "").strip()
+    if not key:
+        return None
+    for src in ("patient1", "patient1_twin"):
+        if not (CACHE_DIR / ("%s_events.jsonl" % src)).exists():
+            continue
+        try:
+            if key == _preset(src)["text"].strip():
+                return src
+        except OSError:
+            continue
+    return None
+
+
+def _run_replay_recorded(src_pid: str):
+    """Replay a recorded live run's event stream, time-compressed to ~1 min.
+
+    Inter-event gaps are scaled so the whole recording spans about
+    REPLAY_TARGET_SECONDS — the typing deltas, tool calls, and verdict land
+    with the same rhythm as the live run, just faster. Every event carries a
+    "pct" so the UI progress bar tracks the playback exactly. Round/final
+    state files are re-persisted at the same points the live run wrote them.
+    """
+    pid = "%s_replay" % src_pid
     try:
+        with (CACHE_DIR / ("%s_events.jsonl" % src_pid)).open(
+                "r", encoding="utf-8") as f:
+            evts = [json.loads(l) for l in f if l.strip()]
+        evts = [e for e in evts if e.get("type") != "start"]  # start_run re-emits
+        t0, t_end = evts[0]["t"], evts[-1]["t"]
+        span = max(t_end - t0, 1e-6)
+        scale = min(1.0, REPLAY_TARGET_SECONDS / span)
+
+        def persist(name: str) -> None:
+            state = _load_json(CACHE_DIR / ("%s_%s.json" % (src_pid, name)))
+            if state:
+                state["patient_id"] = pid
+                (RUNS_DIR / ("%s_%s.json" % (pid, name))).write_text(
+                    json.dumps(state, indent=2), encoding="utf-8")
+
         events_mod.start_run(pid)
-        snapshots = [s for s in (_load_json(p) for p in src) if s]
-        events_mod.emit("A", "phase",
-                        "Agent A is reading the chart and gathering evidence "
-                        "for 5 rubric criteria")
-        r0 = snapshots[0]
-        for trace in r0.get("search_trace", []):
-            for i, q in enumerate(trace["attempts"]):
-                hit = trace["resolved_in"] if i == len(trace["attempts"]) - 1 or i > 0 else None
-                resolved = trace["resolved_in"]
-                miss = len(trace["attempts"]) > 1 and i == 0
-                events_mod.emit(
-                    "A", "search",
-                    'Criterion %s: searched "%s" — %s'
-                    % (trace["criterion_id"], q,
-                       "no hits, reformulating" if miss
-                       else "verified quotes from %s" % resolved),
-                    criterion=trace["criterion_id"], query=q, hits=0 if miss else 1,
-                )
-                time.sleep(1.2)
-            events_mod.emit("A", "tick",
-                            "Criterion %s: evidence gathered" % trace["criterion_id"],
-                            criterion=trace["criterion_id"],
-                            resolved_in=trace["resolved_in"])
-        events_mod.emit("A", "info",
-                        "Agent A is drafting the evidence packet from the "
-                        "verified quotes…")
-        time.sleep(2)
-        events_mod.emit("A", "packet", "Evidence packet assembled",
-                        statuses={str(e["criterion_id"]): e["status"]
-                                  for e in r0["packet"]})
-        for state, path in zip(snapshots, src):
-            out = dict(state, patient_id=pid)
-            (RUNS_DIR / ("%s_round%d.json" % (pid, out["round"]))).write_text(
-                json.dumps(out, indent=2), encoding="utf-8")
-            time.sleep(0.5)
-        fin = _load_json(final)
-        for rnd_idx, rnd in enumerate(fin.get("challenges", []), 1):
-            events_mod.emit("sys", "round",
-                            "Round %d: adversarial review" % rnd_idx, round=rnd_idx)
-            events_mod.emit("B", "phase",
-                            "Agent B is reviewing the packet — packet + rubric "
-                            "only, no chart access")
-            time.sleep(2.5)
-            if not rnd:
-                events_mod.emit("B", "standdown",
-                                "Agent B stands down — the packet is airtight "
-                                "under the rubric")
-            for c in rnd:
-                def _trunc(s, n):
-                    s = str(s or "")
-                    return s if len(s) <= n else s[:n].rsplit(" ", 1)[0] + " …"
-                events_mod.emit(
-                    "B", "challenge",
-                    "Agent B challenges item %s: %s"
-                    % (c["criterion_id"], _trunc(c["challenge_reason"], 320)),
-                    criterion=c["criterion_id"],
-                    rubric_quote=_trunc(c.get("rubric_quote", ""), 300),
-                    what_would_satisfy=_trunc(c.get("what_would_satisfy", ""), 400))
-                time.sleep(2)
-                events_mod.emit("A", "phase",
-                                "Agent A is repairing the packet — targeting "
-                                "what would satisfy 1 challenge(s)")
-                time.sleep(2)
-                events_mod.emit("A", "concede",
-                                "Agent A concedes item %s — the chart cannot "
-                                "answer the challenge; status set to insufficient"
-                                % c["criterion_id"], criterion=c["criterion_id"])
-        out = dict(fin, patient_id=pid)
-        (RUNS_DIR / ("%s_final.json" % pid)).write_text(
-            json.dumps(out, indent=2), encoding="utf-8")
-        events_mod.emit("sys", "terminal", fin["terminal_state"],
-                        terminal=fin["terminal_state"], round=fin["round"])
-        if fin.get("patient_message"):
-            time.sleep(1.5)
-            events_mod.emit("B", "sms", fin["patient_message"],
-                            terminal=fin["terminal_state"])
+        prev = t0
+        for e in evts:
+            time.sleep(min(max((e["t"] - prev) * scale, 0.0), 4.0))
+            prev = e["t"]
+            data = dict(e.get("data") or {})
+            # Progress synced to playback position (95 reserved for terminal).
+            data["pct"] = round(2 + 93.0 * (e["t"] - t0) / span, 1)
+            if e["type"] == "round":
+                # The live loop persists round N-1 before announcing round N.
+                persist("round%d" % (int(data.get("round", 1)) - 1))
+            if e["type"] == "terminal":
+                for p in CACHE_DIR.glob("%s_round*.json" % src_pid):
+                    persist(p.stem[len(src_pid) + 1:])
+                persist("final")
+            events_mod.emit(e["actor"], e["type"], e.get("text", ""), **data)
     except Exception as exc:
         _active["error"] = "replay failed: %s" % exc
         events_mod.emit("sys", "error", _active["error"])
@@ -315,7 +307,6 @@ class RunRequest(BaseModel):
     notes_text: str = ""
     label: str = ""
     images_from: str = ""
-    replay: bool = False
 
 
 @app.post("/run")
@@ -325,23 +316,21 @@ def post_run(req: RunRequest):
             return JSONResponse({"ok": False, "error": "a run is already in progress"},
                                 status_code=409)
         _active["error"] = None
-        if req.replay:
-            pid = "patient1_replay"
-            if not (RUNS_DIR / "patient1_final.json").exists():
-                return JSONResponse({"ok": False,
-                                     "error": "no cached patient1 run to replay"},
-                                    status_code=400)
+        notes = _parse_notes(req.notes_text or "")
+        if not notes:
+            return JSONResponse(
+                {"ok": False,
+                 "error": "no notes found — separate notes with lines like "
+                          "=== visit1_derm_note.md ==="},
+                status_code=400)
+        cached = _cached_source(req.notes_text)
+        if cached:
+            pid = "%s_replay" % cached
             _clear_patient_artifacts(pid)
             (RUNS_DIR / ("%s_events.jsonl" % pid)).write_text("", encoding="utf-8")
-            t = threading.Thread(target=_run_replay, daemon=True)
+            t = threading.Thread(target=_run_replay_recorded, args=(cached,),
+                                 daemon=True)
         else:
-            notes = _parse_notes(req.notes_text or "")
-            if not notes:
-                return JSONResponse(
-                    {"ok": False,
-                     "error": "no notes found — separate notes with lines like "
-                              "=== visit1_derm_note.md ==="},
-                    status_code=400)
             pid = re.sub(r"[^\w\-]", "_", req.label.strip()) or "pasted_chart"
             _clear_patient_artifacts(pid)
             (RUNS_DIR / ("%s_events.jsonl" % pid)).write_text("", encoding="utf-8")
@@ -350,7 +339,8 @@ def post_run(req: RunRequest):
         _active["thread"] = t
         _active["patient_id"] = pid
         t.start()
-    return JSONResponse({"ok": True, "patient_id": pid})
+    return JSONResponse({"ok": True, "patient_id": pid,
+                         "mode": "cached" if cached else "live"})
 
 
 @app.get("/")

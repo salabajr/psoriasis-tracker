@@ -217,7 +217,6 @@
       <div class="presets">
         <button id="p1">Patient chart</button>
         <button id="p2">Adherent twin</button>
-        <button id="p3">V1&ndash;V2 only</button>
       </div>
       <textarea id="notes" spellcheck="false"
         placeholder="Paste clinical notes here. Separate notes with lines like:&#10;=== visit1_derm_note.md ===&#10;...note text..."></textarea>
@@ -226,13 +225,12 @@
         <div class="strip" id="photolist"></div>
       </div>
       <button id="chartbtn">&#128196; View chart as document</button>
-      <button id="runbtn" class="primary">&#9654;&#xFE0E; Run adversarial review</button>
-      <div class="presets" style="margin-top:8px">
-        <button id="replaybtn" style="flex:1">&#8634; Replay cached demo run</button>
-      </div>
+      <button id="runbtn" class="primary">&#9654;&#xFE0E; Run</button>
       <div id="runerr"></div>
       <div class="hint">Agent A assembles evidence from the pasted chart; Agent B
-        (who never sees the chart) challenges it against the rubric.</div>
+        (who never sees the chart) challenges it against the rubric.
+        Known demo charts play back instantly from a recorded run; new or
+        edited notes run the models live.</div>
     </div>
   </div>
 
@@ -308,7 +306,9 @@
 "use strict";
 const $ = id => document.getElementById(id);
 let cursor = 0, activePid = null, presets = null, terminalSeen = null;
-let progress = 0, ticks = 0, smsText = "";
+let progress = 0, ticks = 0, smsText = "", pctMode = false;
+let eventsPid = null;   // which run's event stream the feed is showing
+let eventsRunId = null; // per-run identity — detects same-patient restarts
 
 function openSms() {
   if (!smsText) return;
@@ -327,8 +327,7 @@ fetch("/presets").then(r => r.json()).then(p => {
 });
 $("p1").onclick = () => setPreset("patient1", "patient1");
 $("p2").onclick = () => setPreset("patient1_twin", "patient1_twin");
-$("p3").onclick = () => setPreset("v1_v2_slice", "v1_v2_slice");
-const PRESET_BTN = { patient1: "p1", patient1_twin: "p2", v1_v2_slice: "p3" };
+const PRESET_BTN = { patient1: "p1", patient1_twin: "p2" };
 function markPreset(key) {
   for (const id of Object.values(PRESET_BTN))
     $(id).classList.toggle("selected", id === PRESET_BTN[key]);
@@ -399,7 +398,18 @@ $("runbtn").onclick = () => startRun({
   label: $("notes").dataset.label || "pasted_chart",
   images_from: $("notes").dataset.label || ""
 });
-$("replaybtn").onclick = () => startRun({ replay: true });
+
+function resetRunView() {
+  // One run = one transcript. Called when a new run's stream begins so
+  // consecutive runs never concatenate into what reads like a loop.
+  cursor = 0; ticks = 0; progress = 0; terminalSeen = null;
+  pctMode = false; smsText = "";
+  $("feed").innerHTML = "";
+  $("verdict").className = "card";
+  $("fill").className = "fill";
+  $("fill").style.width = "0%";
+  $("pct").textContent = "0%";
+}
 
 async function startRun(body) {
   $("runerr").textContent = "";
@@ -408,12 +418,13 @@ async function startRun(body) {
   const j = await r.json();
   if (!j.ok) { $("runerr").textContent = j.error || "run failed"; return; }
   activePid = j.patient_id;
-  cursor = 0; ticks = 0; progress = 0; terminalSeen = null;
-  $("feed").innerHTML = "";
-  $("verdict").className = "card";
-  $("fill").className = "fill";
-  setProgress(2, "Starting run for " + activePid + "…");
-  $("runbtn").disabled = true; $("replaybtn").disabled = true;
+  eventsPid = j.patient_id;
+  resetRunView();
+  pctMode = j.mode === "cached";
+  setProgress(2, j.mode === "cached"
+    ? "Playing recorded demo run for " + activePid.replace("_replay", "") + "…"
+    : "Starting live run for " + activePid + "…");
+  $("runbtn").disabled = true;
 }
 
 function setProgress(p, label) {
@@ -427,7 +438,15 @@ function esc(s) { const d = document.createElement("div"); d.textContent = s == 
 
 function addEvent(e) {
   const feed = $("feed");
-  if (e.type === "start") { return; }
+  // Replayed events carry an exact playback position: the bar follows the
+  // recording, and the heuristic bumps below become label-only (bump()).
+  if (e.data && e.data.pct != null) { pctMode = true; setProgress(e.data.pct); }
+  if (e.type === "start") {
+    // A fresh run began: if the feed still shows a previous run, clear it —
+    // never append a new run under an old one (it reads as a loop).
+    if (feed.children.length) resetRunView();
+    return;
+  }
   if (e.type === "delta") {
     const sid = (e.data || {}).sid || "s0";
     let d = document.getElementById("live-" + sid);
@@ -446,9 +465,12 @@ function addEvent(e) {
     }
     if ((e.data || {}).done) {
       // Stream finished: collapse the raw output so the human-readable
-      // summary events that follow stay prominent.
-      d.classList.remove("live");
+      // summary events that follow stay prominent. Streams with no real
+      // text (e.g. B going straight to a tool call, or a bare "[]") would
+      // collapse into an empty shell — drop those bubbles entirely.
       const raw = pre.textContent;
+      if (raw.trim().length < 25) { d.remove(); autoscroll(); return; }
+      d.classList.remove("live");
       const who = e.actor === "A" ? "Agent A" : "Agent B";
       d.innerHTML = '<div class="who">' + who + ' — finished writing</div>' +
         '<details><summary>raw model output</summary><pre class="livetext">' +
@@ -458,14 +480,14 @@ function addEvent(e) {
   }
   if (e.type === "tick") {
     ticks += 1;
-    setProgress(2 + ticks * 9, "Agent A is working through the chart — question " + ((e.data || {}).criterion) + " done");
+    bump(2 + ticks * 9, "Agent A is working through the chart — question " + ((e.data || {}).criterion) + " done");
     return;
   }
   if (e.type === "round") {
     const d = document.createElement("div");
     d.className = "divider"; d.textContent = e.text;
     feed.appendChild(d);
-    setProgress(55 + (((e.data || {}).round || 1) - 1) * 14, e.text);
+    bump(55 + (((e.data || {}).round || 1) - 1) * 14, e.text);
     autoscroll(); return;
   }
   if (e.type === "terminal") {
@@ -476,7 +498,7 @@ function addEvent(e) {
     setProgress(100, "Run complete — " + e.text.split("_").join(" "));
     $("fill").classList.add(e.text === "CONFIRMED_WORSENING" ? "done-bad" :
                             e.text === "STABLE" ? "done-stable" : "done-good");
-    $("runbtn").disabled = false; $("replaybtn").disabled = false;
+    $("runbtn").disabled = false;
     autoscroll();
     // One deliberate page scroll at the end: bring the verdict card into view
     // once /state has rendered it (~2s poll).
@@ -485,7 +507,7 @@ function addEvent(e) {
   }
   if (e.type === "error") {
     $("runerr").textContent = e.text;
-    $("runbtn").disabled = false; $("replaybtn").disabled = false;
+    $("runbtn").disabled = false;
     return;
   }
   if (e.type === "sms") {
@@ -505,6 +527,7 @@ function addEvent(e) {
   div.className = "evt " + e.actor + " " + e.type;
   const who = e.actor === "A" ? "Agent A — chart reviewer" :
               e.type === "tool" ? "Agent B — pharmacy check" :
+              e.type === "verify" ? "Agent B — verification findings" :
               e.actor === "B" ? "Agent B — nurse auditor" : "system";
   let inner = '<div class="who">' + who + "</div>" + esc(e.text);
   if (e.type === "challenge" && e.data) {
@@ -523,13 +546,17 @@ function addEvent(e) {
   feed.appendChild(div);
 
   if (e.type === "phase" && e.actor === "A" && e.text.indexOf("reading") >= 0)
-    setProgress(4, "Agent A is searching the chart…");
+    bump(4, "Agent A is searching the chart…");
   if (e.type === "info" && e.text.indexOf("writing up") >= 0)
-    setProgress(50, "Agent A is writing up the evidence packet…");
-  if (e.type === "phase" && e.actor === "B") setProgress(progress + 4, "Agent B is reviewing…");
-  if (e.type === "challenge") setProgress(progress + 4, "Agent B has challenged the packet");
-  if (e.type === "concede") setProgress(progress + 4, "Agent A concedes");
+    bump(50, "Agent A is writing up the evidence packet…");
+  if (e.type === "phase" && e.actor === "B") bump(progress + 4, "Agent B is reviewing…");
+  if (e.type === "challenge") bump(progress + 4, "Agent B has challenged the packet");
+  if (e.type === "concede") bump(progress + 4, "Agent A concedes");
   autoscroll();
+}
+function bump(p, label) {
+  // Heuristic progress: value ignored while the recording drives the bar.
+  setProgress(pctMode ? 0 : p, label);
 }
 function autoscroll() {
   // Follow the transcript inside its own panel — never move the page. Only
@@ -669,11 +696,25 @@ async function pollEvents() {
   try {
     const r = await fetch("/events?after=" + cursor);
     const j = await r.json();
+    const switched =
+      (j.pid && eventsPid && j.pid !== eventsPid) ||
+      (j.run_id && eventsRunId && j.run_id !== eventsRunId);
+    if (switched && cursor > 0) {
+      // The stream now belongs to a different run (other patient OR a
+      // same-patient restart) — reset and re-read it from the top instead
+      // of splicing its tail under the old transcript.
+      eventsPid = j.pid; eventsRunId = j.run_id;
+      resetRunView();
+      setTimeout(pollEvents, 50);
+      return;
+    }
+    if (j.pid) eventsPid = j.pid;
+    if (j.run_id) eventsRunId = j.run_id;
     (j.events || []).forEach(addEvent);
     cursor = j.next || cursor;
     if (j.running) delay = 300;  // stream deltas land near-live during a run
     if (!j.running && terminalSeen === null && cursor > 0) {
-      $("runbtn").disabled = false; $("replaybtn").disabled = false;
+      $("runbtn").disabled = false;
     }
     if (j.error) $("runerr").textContent = j.error;
   } catch (e) { /* server restarting; keep polling */ }

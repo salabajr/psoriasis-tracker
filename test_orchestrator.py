@@ -56,7 +56,9 @@ def _make_patient_dir(tmp_root, name):
 
 
 def scenario_a(tmp_root):
-    """Challenge in round 1, repair concedes item 5, stand-down in round 2."""
+    """Challenge in round 1, repair concedes item 5 -> the concede-all
+    early-exit closes the debate at round 1 (no foregone round-2 stand-down;
+    B is only called once)."""
     packet = _load_fixture("fixture_packet.json")
     challenges_fixture = _load_fixture("fixture_challenges.json")
     patient_dir = _make_patient_dir(tmp_root, "zz_testpatient")
@@ -84,10 +86,12 @@ def scenario_a(tmp_root):
     state = run(patient_dir, assemble=assemble, review=review, repair=repair)
 
     assert state["terminal_state"] == "INSUFFICIENT_EVIDENCE", state["terminal_state"]
-    assert state["round"] == 2, "terminal must be reached at round 2, not 3 (got %r)" % state["round"]
-    assert state["challenges"] == [challenges_fixture, []], state["challenges"]
-    assert review_calls["n"] == 2
-    print("PASS scenario A: INSUFFICIENT_EVIDENCE at round 2, challenges == [[challenge], []]")
+    assert state["round"] == 1, ("concede-all early-exit: terminal at round 1, "
+                                 "got %r" % state["round"])
+    assert state["challenges"] == [challenges_fixture], state["challenges"]
+    assert review_calls["n"] == 1, "B must not be called for a foregone stand-down"
+    print("PASS scenario A: INSUFFICIENT_EVIDENCE at round 1 via concede-all "
+          "early-exit, challenges == [[challenge]]")
     return state
 
 
@@ -123,7 +127,9 @@ def scenario_b(tmp_root):
 
 
 def scenario_c(tmp_root):
-    """B always challenges, repair never concedes -> loop stops at round 3 (cap)."""
+    """B challenges a DIFFERENT criterion each round (so neither the
+    two-strikes rule nor the concede-all early-exit fires), repair never
+    concedes -> loop stops at the round-3 cap."""
     packet = _load_fixture("fixture_packet.json")
     challenge = _load_fixture("fixture_challenges.json")
     patient_dir = _make_patient_dir(tmp_root, "patientC")
@@ -136,7 +142,9 @@ def scenario_c(tmp_root):
 
     def review(pkt, rubric):
         review_calls["n"] += 1
-        return copy.deepcopy(challenge)
+        ch = copy.deepcopy(challenge)
+        ch[0]["criterion_id"] = 1 + review_calls["n"]  # rounds hit items 2, 3, 4
+        return ch
 
     def repair(pkt, challenges, corpus_dir):
         return copy.deepcopy(pkt)  # never concedes, never fixes
@@ -152,11 +160,11 @@ def scenario_c(tmp_root):
 
 
 def check_persistence(final_state_a):
-    """After scenario A: round0..round2 + final files exist, valid JSON, schema keys."""
+    """After scenario A: round0..round1 + final files exist, valid JSON,
+    schema keys (the concede-all early-exit ends the run at round 1)."""
     expected = [
         os.path.join(RUNS_DIR, "zz_testpatient_round0.json"),
         os.path.join(RUNS_DIR, "zz_testpatient_round1.json"),
-        os.path.join(RUNS_DIR, "zz_testpatient_round2.json"),
         os.path.join(RUNS_DIR, "zz_testpatient_final.json"),
     ]
     for path in expected:
@@ -172,8 +180,8 @@ def check_persistence(final_state_a):
     with open(os.path.join(RUNS_DIR, "zz_testpatient_final.json")) as f:
         final = json.load(f)
     assert final["terminal_state"] == final_state_a["terminal_state"]
-    assert final["round"] == 2
-    print("PASS persistence: round0-round2 + final exist, valid JSON, schema keys present")
+    assert final["round"] == 1
+    print("PASS persistence: round0-round1 + final exist, valid JSON, schema keys present")
 
 
 def main():

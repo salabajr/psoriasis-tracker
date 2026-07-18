@@ -175,6 +175,28 @@ def run(patient_dir: str, assemble=None, review=None, repair=None, notify=None) 
                                 "without resolution — it's marked 'not enough "
                                 "documentation' and the debate moves on."
                                 % cid, criterion=cid)
+
+            # If A conceded every point B raised (nothing challenged kept a
+            # non-insufficient status), another review round could only
+            # re-confirm the concessions — close the debate now instead of
+            # spending a full model round on a foregone stand-down.
+            challenged = {c.get("criterion_id") for c in challenges
+                          if isinstance(c, dict)}
+            by_id = {e.get("criterion_id"): e for e in run_state["packet"]}
+            if challenged and all(
+                    (by_id.get(cid) or {}).get("status") == "insufficient"
+                    for cid in challenged):
+                events.emit("sys", "info",
+                            "Agent A has conceded every point Agent B raised — "
+                            "nothing is left in dispute, so the review closes "
+                            "here.")
+                run_state["terminal_state"] = _compute_terminal(run_state["packet"])
+                events.emit("sys", "terminal", run_state["terminal_state"],
+                            terminal=run_state["terminal_state"], round=round_num)
+                _maybe_notify(run_state, notify)
+                _persist_round(run_state)
+                _persist_final(run_state)
+                return run_state
             _persist_round(run_state)
 
         # Round cap reached with B still challenging: terminal on current packet.

@@ -14,7 +14,8 @@ import re
 import sys
 from pathlib import Path
 
-from config import MODEL, TEMPERATURE, CACHE_PREFIX, IS_FABLE, FALLBACK_MODEL
+from config import (MODEL, TEMPERATURE, CACHE_PREFIX, IS_FABLE,
+                    NO_TEMPERATURE, USE_BETA, BETA_KWARGS)
 
 MAX_RESULTS = 5
 
@@ -199,14 +200,12 @@ def _rank_with_claude(
         messages=[{"role": "user", "content": f"Query: {query}\n\nReturn the JSON array now."}],
     )
     if IS_FABLE:
-        # Fable 5: temperature rejected; keep ranking snappy at low effort,
-        # with the server-side refusal fallback enabled.
-        response = client.beta.messages.create(
-            betas=["server-side-fallback-2026-06-01"],
-            fallbacks=[{"model": FALLBACK_MODEL}],
-            output_config={"effort": "low"},
-            **kwargs,
-        )
+        # Fable 5: always-on thinking — keep ranking snappy at low effort.
+        kwargs["output_config"] = {"effort": "low"}
+    if USE_BETA:
+        response = client.beta.messages.create(**dict(BETA_KWARGS), **kwargs)
+    elif NO_TEMPERATURE:
+        response = client.messages.create(**kwargs)
     else:
         response = client.messages.create(temperature=TEMPERATURE, **kwargs)
 

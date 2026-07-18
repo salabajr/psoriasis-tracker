@@ -1,0 +1,205 @@
+{
+  "patient_id": "patient1",
+  "round": 2,
+  "terminal_state": "INSUFFICIENT_EVIDENCE",
+  "packet": [
+    {
+      "criterion_id": 1,
+      "criterion_text": "Objective severity trend: PASI, BSA, and/or IGA show a directional change across visits.",
+      "status": "worsening",
+      "evidence": [
+        {
+          "doc_id": "visit1_derm_note",
+          "quote": "PASI 6.1, BSA 8%, IGA 2",
+          "date": "2026-02-02"
+        },
+        {
+          "doc_id": "visit2_derm_note",
+          "quote": "BSA 8%. IGA 2. DLQI 8, reflecting minor residual itch.",
+          "date": "2026-03-16"
+        },
+        {
+          "doc_id": "visit3_derm_note",
+          "quote": "Severity today: PASI 14.2, BSA 15%, IGA 3.",
+          "date": "2026-05-10"
+        },
+        {
+          "doc_id": "visit4_derm_note",
+          "quote": "PASI 16.8, BSA 18%, IGA 3.",
+          "date": "2026-06-29"
+        },
+        {
+          "doc_id": "images/visit4_arm.jpg",
+          "quote": "confluent erythematous plaques with thick scale over extensor arm, extensive severity",
+          "date": "2026-06-29"
+        }
+      ],
+      "reasoning": "Across four dated encounters the objective indices show a clinically meaningful rise: PASI increased from 6.1 (2026-02-02) to 14.2 (2026-05-10) to 16.8 (2026-06-29), far exceeding the >= 2 point threshold; BSA rose from 8% to 18%; IGA stepped up from 2 to 3. The 2026-06-29 photograph corroborates extensive plaque severity. Although visit 2 lacks a PASI, the trend is established by three PASI values plus BSA/IGA at all four visits. Note: this criterion documents the measured trend only; whether the trend is attributable to disease activity is governed by criterion 5, which is conceded as unresolved.",
+      "rubric_ref": "1",
+      "gap": "The March visit recorded BSA and IGA but never repeated the PASI score that was tracked at every other visit."
+    },
+    {
+      "criterion_id": 2,
+      "criterion_text": "Symptom trajectory, including nail and joint involvement, shows a directional change.",
+      "status": "worsening",
+      "evidence": [
+        {
+          "doc_id": "visit3_nursing_note",
+          "quote": "onycholysis noted on two fingernails (right index and right middle), with distal separation and slight yellowish discoloration",
+          "date": "2026-05-10"
+        },
+        {
+          "doc_id": "images/visit3_nails.jpg",
+          "quote": "nail plate with longitudinal ridging and subungual discoloration",
+          "date": "2026-05-10"
+        },
+        {
+          "doc_id": "images/visit1_arm.jpg",
+          "quote": "few grouped erythematous papules over the antecubital/flexor arm, limited extent",
+          "date": "2026-02-02"
+        },
+        {
+          "doc_id": "images/visit3_scalp.jpg",
+          "quote": "erythematous scaly plaque along frontal scalp/hairline, localized",
+          "date": "2026-05-10"
+        },
+        {
+          "doc_id": "images/visit4_scalp.jpg",
+          "quote": "diffuse thick silvery scale over frontal scalp with erythema, extensive",
+          "date": "2026-06-29"
+        }
+      ],
+      "reasoning": "New nail involvement (onycholysis of two fingernails) is documented on 2026-05-10 in the nursing note and corroborated by the same-day nail photograph. Photographic observations further show progression by site and extent: limited flexor-arm papules on 2026-02-02, a localized scalp plaque appearing on 2026-05-10, and extensive scalp involvement by 2026-06-29. This is a directional worsening of symptom trajectory including new nail and scalp involvement. No joint symptoms are documented; absence of mention is not treated as evidence of absence. As with criterion 1, this documents the observed trajectory only; attribution to disease activity is unresolved per criterion 5.",
+      "rubric_ref": "2",
+      "gap": "The June dermatology visit never re-documented the nail findings that nursing recorded in May, so nail progression after May cannot be tracked from the notes."
+    },
+    {
+      "criterion_id": 3,
+      "criterion_text": "DLQI (Dermatology Life Quality Index) trend shows a directional change.",
+      "status": "worsening",
+      "evidence": [
+        {
+          "doc_id": "visit1_derm_note",
+          "quote": "DLQI 7, driven by residual itch and self-consciousness at the gym.",
+          "date": "2026-02-02"
+        },
+        {
+          "doc_id": "visit2_derm_note",
+          "quote": "DLQI 8, reflecting minor residual itch.",
+          "date": "2026-03-16"
+        },
+        {
+          "doc_id": "visit3_derm_note",
+          "quote": "DLQI 15 today (was 8), with high scores on symptoms, feelings, and work domains.",
+          "date": "2026-05-10"
+        },
+        {
+          "doc_id": "visit4_derm_note",
+          "quote": "DLQI 17. Compared with 2026-05-10 (PASI 14.2, DLQI 15), objective and quality-of-life measures are both worse.",
+          "date": "2026-06-29"
+        }
+      ],
+      "reasoning": "DLQI is documented at all four visits: 7 (2026-02-02), 8 (2026-03-16), 15 (2026-05-10), 17 (2026-06-29). The rise from 8 to 15 between March and May is a 7-point increase, exceeding the >= 4 point worsening threshold, and the trend is sustained upward through June. This is a documented directional worsening of quality of life.",
+      "rubric_ref": "3"
+    },
+    {
+      "criterion_id": 4,
+      "criterion_text": "Treatment-response adequacy: the current regimen has been given an adequate, adherent trial.",
+      "status": "insufficient",
+      "evidence": [
+        {
+          "doc_id": "visit4_derm_note",
+          "quote": "Adherence and pharmacy fill detail deferred to today's separate review by clinic staff (filed separately).",
+          "date": "2026-06-29"
+        }
+      ],
+      "reasoning": "The only candidate speaking to treatment adequacy states that adherence and pharmacy fill details were deferred to a separately filed review that is not among the available chart documents. The candidates do not identify the current regimen, its start date, dosing schedule, or whether doses were taken as scheduled, so an adequate, adherent trial cannot be verified from the quoted evidence. This is consistent with the reviewer's pharmacy dispense data (criterion 5), which indicates adalimumab coverage lapsed after 2026-04-13, meaning the current regimen has not had an adherent trial during the recent worsening interval.",
+      "rubric_ref": "4",
+      "gap": "The June visit deferred the adherence and pharmacy-fill review to a separate document that is not in the chart, so there is no record showing whether the patient actually took the current treatment as prescribed."
+    },
+    {
+      "criterion_id": 5,
+      "criterion_text": "Worsening cannot be attributed to disease if a confounder (non-adherence, infection, steroid-withdrawal or seasonal flare) is unaddressed.",
+      "status": "insufficient",
+      "evidence": [],
+      "reasoning": "Conceded. The reviewer's pharmacy dispense records (MedicationDispense MD-004: last adalimumab dispense 2026-03-16, 28-day supply, coverage ended 2026-04-13, no subsequent fill; MD-003/MD-002: prior fills on a regular 4-week cadence until they stopped) establish a treatment gap beginning 2026-04-13. Every measurement documenting the most recent worsening (2026-05-10 PASI 14.2/BSA 15%/IGA 3/DLQI 15; 2026-06-29 PASI 16.8/BSA 18%/IGA 3/DLQI 17) postdates that gap, and a targeted re-search of the chart returned no evidence that the deterioration began before 2026-04-13 or persisted during a period of confirmed adherence. The non-adherence confounder is therefore present and unaddressed, and the documented progression cannot be separated from the treatment gap. Documentation that would settle the question: (a) dated chart evidence that the onset of the most recent deterioration preceded 2026-04-13, or (b) reassess severity after a period of resumed, confirmed adherence (e.g., repeat PASI/BSA/IGA and DLQI after documented refills and confirmed dosing), with worsening persisting despite that adherence.",
+      "rubric_ref": "5",
+      "gap": "The chart contains no confounder screening, and pharmacy dispense records show an unrefilled adalimumab gap starting 2026-04-13 that precedes all measurements of the most recent worsening; nothing in the chart dates the deterioration before the gap or documents severity during confirmed adherence."
+    }
+  ],
+  "challenges": [
+    [
+      {
+        "criterion_id": 5,
+        "challenge_reason": "The pharmacy records show the last adalimumab fill was March 16 with a 28-day supply, so the drug ran out April 13 and was never refilled. Every measurement showing the patient getting worse comes after that date, so we can't tell whether this is the disease progressing or simply the medication stopping.",
+        "rubric_quote": "A confounder is 'addressed' only if the chart either excludes it or establishes that worsening preceded it.",
+        "what_would_satisfy": "Evidence that the severity rise persisted during a period of confirmed adherence, or a concession that the progression cannot be separated from the treatment gap.",
+        "external_evidence": [
+          {
+            "resource_type": "MedicationDispense",
+            "resource_id": "MD-004",
+            "detail": "last adalimumab dispense 2026-03-16, 28-day supply; coverage ended 2026-04-13; no subsequent adalimumab fill before the 2026-05-10 and 2026-06-29 visits documenting worsening"
+          },
+          {
+            "resource_type": "MedicationDispense",
+            "resource_id": "MD-003",
+            "detail": "prior adalimumab dispense 2026-02-16, 28-day supply \u2014 fills had been on a regular 4-week cadence (with MD-002 on 2026-01-19) until they stopped after 2026-03-16"
+          }
+        ]
+      }
+    ],
+    []
+  ],
+  "search_trace": [
+    {
+      "criterion_id": 1,
+      "attempts": [
+        "PASI BSA IGA"
+      ],
+      "resolved_in": "visit4_derm_note"
+    },
+    {
+      "criterion_id": 2,
+      "attempts": [
+        "nail involvement",
+        "onycholysis"
+      ],
+      "resolved_in": "visit3_nursing_note"
+    },
+    {
+      "criterion_id": 3,
+      "attempts": [
+        "DLQI"
+      ],
+      "resolved_in": "visit4_derm_note"
+    },
+    {
+      "criterion_id": 4,
+      "attempts": [
+        "current regimen adherence doses",
+        "missed doses",
+        "medication adherence"
+      ],
+      "resolved_in": "visit4_derm_note"
+    },
+    {
+      "criterion_id": 5,
+      "attempts": [
+        "confounder missed doses infection steroid seasonal",
+        "missed doses",
+        "infection steroid taper seasonal flare"
+      ],
+      "resolved_in": null
+    }
+  ],
+  "tool_trace": [
+    {
+      "agent": "B",
+      "tool": "pharmacy_lookup",
+      "patient_id": "patient1",
+      "n_results": 5,
+      "round": 1
+    }
+  ],
+  "patient_message": "Hi, we looked over your recent visits and your psoriasis does look more active. But it seems some doses of your adalimumab were missed, so it's hard to tell what's causing the flare. Please restart it as prescribed, and reply to let us know about when your skin started getting worse. If you need help getting the medicine, just tell us. \u2014 your dermatology care team"
+}

@@ -157,12 +157,11 @@ def _stream_message(client, kwargs: dict, actor: str):
     """
     global _STREAM_SEQ
     try:
-        if getattr(config, "IS_FABLE", False):
+        if getattr(config, "USE_BETA", False):
             cm = client.beta.messages.stream(
-                betas=["server-side-fallback-2026-06-01"],
-                fallbacks=[{"model": config.FALLBACK_MODEL}],
-                **kwargs,
-            )
+                **dict(getattr(config, "BETA_KWARGS", {})), **kwargs)
+        elif getattr(config, "NO_TEMPERATURE", False):
+            cm = client.messages.stream(**kwargs)
         else:
             cm = client.messages.stream(temperature=config.TEMPERATURE, **kwargs)
     except (AttributeError, TypeError):
@@ -170,12 +169,15 @@ def _stream_message(client, kwargs: dict, actor: str):
 
     _STREAM_SEQ += 1
     sid = "s%d" % _STREAM_SEQ
-    buf, last = [], [0.0]
+    buf, last, sent = [], [0.0], [False]
 
     def _flush(done=False):
         chunk = "".join(buf)
-        if chunk or done:
+        # A stream that never produced text (e.g. straight to a tool call)
+        # emits nothing — otherwise the UI would show an empty bubble.
+        if chunk or (done and sent[0]):
             events.emit(actor, "delta", chunk, sid=sid, done=done)
+            sent[0] = True
             del buf[:]
             last[0] = time.time()
 
@@ -188,6 +190,10 @@ def _stream_message(client, kwargs: dict, actor: str):
         return stream.get_final_message()
 
 
+_LAST_CALL_STREAMED = False  # whether the most recent call's text already
+                             # reached the transcript as live deltas
+
+
 def _create_message(client, kwargs: dict, actor: str = None):
     """Model-aware messages.create (every Claude call funnels through here).
 
@@ -198,22 +204,26 @@ def _create_message(client, kwargs: dict, actor: str = None):
     and the transcript sees the output live; any streaming failure falls back
     to the blocking call (the demo must never take down the pipeline).
     """
+    global _LAST_CALL_STREAMED
+    _LAST_CALL_STREAMED = False
     if actor and events.is_active():
         try:
             msg = _stream_message(client, kwargs, actor)
             if msg is not None:
+                _LAST_CALL_STREAMED = True
                 return msg
         except Exception:
             pass
-    if getattr(config, "IS_FABLE", False):
+    if getattr(config, "USE_BETA", False):
         try:
             return client.beta.messages.create(
-                betas=["server-side-fallback-2026-06-01"],
-                fallbacks=[{"model": config.FALLBACK_MODEL}],
-                **kwargs,
-            )
+                **dict(getattr(config, "BETA_KWARGS", {})), **kwargs)
         except AttributeError:
             pass  # mocked client without a beta surface (unit tests)
+    if getattr(config, "NO_TEMPERATURE", False):
+        # Modern-surface models reject sampling params. (Mocked clients take
+        # **kwargs, so tests assert on temperature's absence instead.)
+        return client.messages.create(**kwargs)
     return client.messages.create(temperature=config.TEMPERATURE, **kwargs)
 
 
@@ -829,6 +839,11 @@ def _review_round(system_blocks: list, user_content: str, patient_id: str):
         tool_uses = [b for b in content if getattr(b, "type", "") == "tool_use"]
         if getattr(response, "stop_reason", None) == "tool_use" and tool_uses \
                 and creates < 3:
+            # B's verification notes precede the tool call — show them as a
+            # prominent card (the live-stream bubble collapses when done).
+            pre_text = _extract_text(response).strip()
+            if pre_text:
+                events.emit("B", "verify", _trunc(pre_text, 700))
             results = []
             for block in tool_uses:
                 if block.name == "pharmacy_lookup" and lookups < 2:
@@ -860,6 +875,11 @@ def _review_round(system_blocks: list, user_content: str, patient_id: str):
             messages.append({"role": "user", "content": results})
             continue
         text = _extract_text(response)
+        # Verification notes may precede the final JSON array — surface them.
+        cut = text.find("[")
+        preamble = text[:cut].strip() if cut > 0 else ""
+        if len(preamble) > 40:
+            events.emit("B", "verify", _trunc(preamble, 700))
         try:
             return _parse_json(text), bundles
         except (ValueError, json.JSONDecodeError):

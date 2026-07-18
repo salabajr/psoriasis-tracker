@@ -1,7 +1,7 @@
 {
   "patient_id": "patient1",
   "round": 1,
-  "terminal_state": null,
+  "terminal_state": "INSUFFICIENT_EVIDENCE",
   "packet": [
     {
       "criterion_id": 1,
@@ -25,21 +25,21 @@
         },
         {
           "doc_id": "visit4_derm_note",
-          "quote": "PASI 16.8, BSA 18%, IGA 3. DLQI 17.",
+          "quote": "PASI 16.8, BSA 18%, IGA 3.",
           "date": "2026-06-29"
         },
         {
           "doc_id": "images/visit1_arm.jpg",
-          "quote": "Few scattered erythematous papules on the antecubital arm, limited extent",
+          "quote": "Few scattered erythematous papules over the antecubital arm, limited extent",
           "date": "2026-02-02"
         },
         {
           "doc_id": "images/visit4_arm.jpg",
-          "quote": "Confluent erythematous plaques with overlying scale over the arm, extensive",
+          "quote": "Confluent erythematous plaques with thick scale over extensor arm, extensive severe",
           "date": "2026-06-29"
         }
       ],
-      "reasoning": "PASI rose from 6.1 (2026-02-02) and 6.3 (2026-03-16) to 14.2 (2026-05-10) and 16.8 (2026-06-29), a rise far exceeding the 2-point threshold; BSA rose from 8% to 18% and IGA stepped up from 2 to 3. The photographic progression from limited papules to extensive confluent plaques corroborates the objective worsening. Note: whether this measured worsening is attributable to disease activity rather than a treatment gap is addressed (and conceded) under criterion 5.",
+      "reasoning": "PASI is essentially flat from 2026-02-02 (6.1) to 2026-03-16 (6.3), then rises sharply to 14.2 on 2026-05-10 and 16.8 on 2026-06-29 \u2014 increases well beyond the >=2-point threshold. BSA climbs 8%->15%->18% and IGA steps up from 2 to 3. All four visits document objective scores, so the worsening trend is well supported. Photo progression from limited papules to extensive severe plaques corroborates the numeric trend.",
       "rubric_ref": "1"
     },
     {
@@ -54,33 +54,23 @@
         },
         {
           "doc_id": "images/visit3_nails.jpg",
-          "quote": "Nail plate pitting with mild subungual discoloration and ridging",
+          "quote": "Nail plate with longitudinal ridging and mild dystrophy, subtle discoloration",
           "date": "2026-05-10"
         },
         {
           "doc_id": "images/visit3_scalp.jpg",
-          "quote": "Erythematous scaly patch with scale along the frontal scalp hairline, localized",
+          "quote": "Erythematous scaly plaque at frontal scalp margin with overlying hair, localized",
           "date": "2026-05-10"
         },
         {
           "doc_id": "images/visit4_scalp.jpg",
-          "quote": "Thick adherent scale over erythematous frontal scalp plaques, moderate to extensive",
-          "date": "2026-06-29"
-        },
-        {
-          "doc_id": "images/visit2_arm.jpg",
-          "quote": "Grouped erythematous papules and small plaques over the arm, mild to moderate extent",
-          "date": "2026-03-16"
-        },
-        {
-          "doc_id": "images/visit4_arm.jpg",
-          "quote": "Confluent erythematous plaques with overlying scale over the arm, extensive",
+          "quote": "Thick scaly erythematous plaques over frontal scalp with adherent scale, extensive",
           "date": "2026-06-29"
         }
       ],
-      "reasoning": "New nail involvement (onycholysis on two fingernails plus photographed pitting) appears on 2026-05-10, and photographs document scalp disease at 2026-05-10 that progresses from localized to moderate-to-extensive by 2026-06-29, alongside arm lesions progressing from mild-to-moderate papules to extensive confluent plaques. Together these show a worsening symptom trajectory including new nail and scalp sites. No joint symptoms are documented in the candidates. Note: all documented symptom progression falls within the same interval as the biologic coverage gap conceded under criterion 5.",
+      "reasoning": "New nail involvement (onycholysis of two fingernails) appears at 2026-05-10, corroborated by the nail photo showing ridging and dystrophy \u2014 a new finding not present at earlier visits. Scalp involvement, localized at 2026-05-10, progresses to extensive thick plaques by 2026-06-29. This reflects progressing symptoms across new anatomic sites. No joint symptoms are documented in the candidates.",
       "rubric_ref": "2",
-      "gap": "No visit after May 10 re-examined or re-documented the fingernail changes that were first noted then."
+      "gap": "No structured symptom or nail/joint review is recorded at the February or March visits, so the nail and scalp findings can only be timed from the May visit onward."
     },
     {
       "criterion_id": 3,
@@ -89,7 +79,7 @@
       "evidence": [
         {
           "doc_id": "visit1_derm_note",
-          "quote": "DLQI 7, driven by residual itch and self-consciousness at the gym.",
+          "quote": "Quality-of-life impact: DLQI 7, driven by residual itch and self-consciousness at the gym.",
           "date": "2026-02-02"
         },
         {
@@ -104,11 +94,11 @@
         },
         {
           "doc_id": "visit4_derm_note",
-          "quote": "DLQI 17. Compared with 2026-05-10 (PASI 14.2, DLQI 15), objective and quality-of-life measures are both worse.",
+          "quote": "PASI 16.8, BSA 18%, IGA 3. DLQI 17.",
           "date": "2026-06-29"
         }
       ],
-      "reasoning": "DLQI rose from 7 (2026-02-02) and 8 (2026-03-16) to 15 (2026-05-10) and 17 (2026-06-29). The jump from 8 to 15 exceeds the 4-point threshold for meaningful worsening, and the subsequent rise to 17 confirms a sustained upward trend.",
+      "reasoning": "DLQI is stable early (7 at 2026-02-02, 8 at 2026-03-16), then jumps to 15 at 2026-05-10 and 17 at 2026-06-29. The rise from 8 to 15 far exceeds the >=4-point threshold, and the sustained upward trend to 17 confirms worsening quality-of-life impact tracking the objective severity increase.",
       "rubric_ref": "3"
     },
     {
@@ -122,37 +112,37 @@
           "date": "2026-06-29"
         }
       ],
-      "reasoning": "The chart itself defers adherence and pharmacy fill details to a separately filed review that is not among the provided evidence, so the trial's adequacy cannot be established from chart quotes. Moreover, the reviewer's pharmacy dispense records (MD-004, MD-005) indicate the last adalimumab dispense was 2026-03-16 with a 28-day supply and no subsequent refill, meaning the regimen was not taken as scheduled after 2026-04-13. On both grounds, an adequate, adherent trial cannot be affirmed. Documentation that would settle this: a completed adherence/pharmacy-fill review confirming scheduled dosing, or confirmation of resumed adherence with sufficient duration to judge response.",
+      "reasoning": "The candidates do not identify the current regimen, its start date, or dosing schedule, and the only adherence-relevant quote explicitly defers pharmacy fill and adherence detail to a separate document that is not among the candidates. Without regimen identity, duration, and confirmed dosing, adequacy of an adherent trial cannot be judged.",
       "rubric_ref": "4",
-      "gap": "The June 29 visit deferred the adherence and pharmacy-fill review to a separate document that is not in the chart provided; dispense records indicate no adalimumab refill after 2026-03-16."
+      "gap": "The chart never states which medication the patient is on, when it started, or whether doses were actually taken \u2014 the adherence review is filed separately and not available here."
     },
     {
       "criterion_id": 5,
       "criterion_text": "Worsening cannot be attributed to disease if a confounder (non-adherence, infection, steroid-withdrawal or seasonal flare) is unaddressed.",
       "status": "insufficient",
       "evidence": [],
-      "reasoning": "Conceded. The reviewer's pharmacy dispense records (MD-004: last adalimumab dispense 2026-03-16, 28-day supply, coverage ended 2026-04-13; MD-005: no adalimumab refill thereafter) establish a biologic non-adherence confounder that the chart cannot rebut: a targeted search returned no chart evidence that the most recent deterioration began before the coverage lapse in mid-April, and every measurement documenting the flare (2026-05-10 and 2026-06-29) postdates the lapse. The rubric requires precedence for the most recent worsening interval, and that cannot be shown, so the progression cannot be separated from the treatment gap. Documentation that would settle this: (a) dated chart evidence that the deterioration started before biologic coverage lapsed on 2026-04-13, or (b) evidence that the severity rise persisted during a period of confirmed adherence \u2014 i.e., resume the biologic, confirm adherence via fills/administration records, and reassess severity after a period of resumed, confirmed adherence.",
+      "reasoning": "I concede this criterion. Pharmacy dispense records (MD-004) establish as ground truth that the patient's adalimumab was last filled on 2026-03-16 with a 28-day supply, so coverage ended approximately 2026-04-13, with no subsequent biologic refill before either the 2026-05-10 or 2026-06-29 visit \u2014 exactly the interval spanning the PASI rise from 6.3 to 14.2 to 16.8. The 2026-06-15 clobetasol dispense (MD-005) is a topical steroid and does not close the biologic gap. This non-adherence confounder overlaps the most recent worsening interval, and the chart contains nothing showing severity climbed while the patient was confirmed to be taking his injections on schedule; new_evidence for this criterion is empty. I cannot rebut the dispense data (no pharmacy access), so the worsening cannot yet be attributed to disease. To settle this, the chart would need to document that severity continued to climb during a period of confirmed, on-schedule biologic dosing \u2014 i.e., reassess severity after a period of resumed, confirmed adherence.",
       "rubric_ref": "5",
-      "gap": "No chart documentation dates the onset of the latest worsening before the 2026-04-13 biologic coverage lapse, and no severity measurements exist during a period of confirmed adherence."
+      "gap": "The most recent worsening interval overlaps a two-month adalimumab coverage gap (coverage ended ~2026-04-13 per MD-004, no refill before the May 10 or June 29 visits). Resolution requires reassessing severity after a period of resumed, confirmed adherence to establish whether disease worsens indepen"
     }
   ],
   "challenges": [
     [
       {
         "criterion_id": 5,
-        "challenge_reason": "We checked the pharmacy records: the patient's last adalimumab fill was March 16 with a 28-day supply, so coverage ran out April 13 and was never refilled. Every measurement showing the flare \u2014 May 10 and June 29 \u2014 came after the biologic lapsed, so the worsening can't be pinned on the disease itself until that treatment gap is dealt with.",
+        "challenge_reason": "The pharmacy records show the patient's biologic injection, adalimumab, was last filled on March 16 with a 28-day supply, so his coverage ran out around April 13. There's no refill after that before either the May 10 or the June 29 visit. That's exactly the stretch where his psoriasis got sharply worse. So we can't yet pin the worsening on the disease \u2014 it lines up with a two-month gap where he likely wasn't getting his injections.",
         "rubric_quote": "Worsening cannot be attributed to disease if a confounder (non-adherence, infection, steroid-withdrawal or seasonal flare) is unaddressed.",
-        "what_would_satisfy": "We'd need documentation that the deterioration started before the biologic coverage lapsed in mid-April, or evidence the severity rise persisted during a period of confirmed adherence \u2014 otherwise a concession that the progression can't be separated from the treatment gap.",
+        "what_would_satisfy": "Show us the severity kept climbing during a stretch when he was confirmed to be taking his injections on schedule, or acknowledge that we can't separate the worsening from the two months he went without his biologic refill.",
         "external_evidence": [
           {
             "resource_type": "MedicationDispense",
             "resource_id": "MD-004",
-            "detail": "adalimumab 40 mg SC q2wk, last dispense 2026-03-16, 28-day supply; coverage ended 2026-04-13; no subsequent adalimumab fill before the 2026-05-10 and 2026-06-29 visits documenting the latest worsening"
+            "detail": "last adalimumab dispense 2026-03-16, 28-day supply; coverage ended approx 2026-04-13; no subsequent adalimumab fill before the 2026-05-10 or 2026-06-29 visits, spanning the interval of PASI rise 6.3->14.2->16.8"
           },
           {
             "resource_type": "MedicationDispense",
             "resource_id": "MD-005",
-            "detail": "only later fill of any kind is clobetasol ointment on 2026-06-15; no adalimumab refill after 2026-03-16"
+            "detail": "2026-06-15 dispense is clobetasol topical steroid, not the biologic; does not close the adalimumab gap"
           }
         ]
       }
@@ -208,5 +198,6 @@
       "n_results": 5,
       "round": 1
     }
-  ]
+  ],
+  "patient_message": "Hi from your skin care team. Your psoriasis looks more active at your recent visits, but it seems there was a gap in your adalimumab (Humira) shots, so the picture isn't fully clear. Please restart it as prescribed, and reply with about when the flare-up started. We're here to help. \u2014 your dermatology care team"
 }

@@ -6,17 +6,36 @@ from dotenv import load_dotenv
 # exports take precedence so CI / export ANTHROPIC_API_KEY=... still works.
 load_dotenv(Path(__file__).resolve().parent / ".env")
 
-MODEL = "claude-fable-5"      # demo model (spec default was claude-sonnet-4-6).
+MODEL = "claude-opus-4-8"     # demo model — optimized for inference speed:
+                              # no always-on thinking (unlike claude-fable-5),
+                              # Opus-tier quality, ~seconds per call.
                               # ONLY place a model string lives.
-FALLBACK_MODEL = "claude-opus-4-8"  # server-side refusal fallback for Fable 5
-TEMPERATURE = 0               # ignored on Fable 5 (parameter rejected there)
+FALLBACK_MODEL = "claude-opus-4-8"  # refusal fallback target when on Fable 5
+TEMPERATURE = 0               # sent only to models that still accept it
 
-# Claude Fable 5 API differences (also applies to claude-mythos-*):
-# temperature is rejected (400), thinking is always on (give max_tokens
-# headroom so thinking doesn't eat the JSON), refusal fallbacks ride on the
-# beta endpoint.
+# Modern-surface models (Fable 5 / Mythos / Opus 4.7+ / Sonnet 5) reject
+# sampling parameters — omit temperature there.
 IS_FABLE = MODEL.startswith(("claude-fable", "claude-mythos"))
-MAX_TOKENS = 16000 if IS_FABLE else 4096
+NO_TEMPERATURE = IS_FABLE or MODEL.startswith(
+    ("claude-opus-4-8", "claude-opus-4-7", "claude-sonnet-5"))
+
+# Fast mode (research preview, Opus 4.8): flip on when the org is granted
+# access — currently rate-limited to 0 fast-mode tokens on this account.
+FAST_MODE = False
+
+if IS_FABLE:
+    # Fable 5: server-side refusal fallback rides on the beta endpoint.
+    USE_BETA = True
+    BETA_KWARGS = {"betas": ["server-side-fallback-2026-06-01"],
+                   "fallbacks": [{"model": FALLBACK_MODEL}]}
+elif FAST_MODE and MODEL.startswith("claude-opus-4-8"):
+    USE_BETA = True
+    BETA_KWARGS = {"betas": ["fast-mode-2026-02-01"], "speed": "fast"}
+else:
+    USE_BETA = False
+    BETA_KWARGS = {}
+
+MAX_TOKENS = 16000 if IS_FABLE else 8000  # Fable needs thinking headroom
 MAX_ROUNDS = 3
 CORPUS_DIR = "corpus/patient1"
 CACHE_PREFIX = True           # mark system+rubric+corpus prefix with cache_control

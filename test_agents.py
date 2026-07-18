@@ -343,7 +343,12 @@ def test_request_structure_cache_prefix():
 
     call = client.messages.calls[0]
     check(call["model"] == config.MODEL, "model must come from config.MODEL")
-    check(call["temperature"] == config.TEMPERATURE, "temperature must come from config")
+    if getattr(config, "NO_TEMPERATURE", False):
+        check("temperature" not in call,
+              "temperature must be OMITTED on modern-surface models")
+    else:
+        check(call["temperature"] == config.TEMPERATURE,
+              "temperature must come from config")
 
     system = call["system"]
     check(isinstance(system, list) and system, "system must be a list of blocks")
