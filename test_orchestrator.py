@@ -35,7 +35,7 @@ def _track_runs(patient_id):
     _created_files.append(os.path.join(RUNS_DIR, "%s_final.json" % patient_id))
 
 
-def _make_run_state(packet, patient_id="patient1"):
+def _make_run_state(packet, patient_id="zz_testpatient"):
     return {
         "patient_id": patient_id,
         "round": 0,
@@ -59,8 +59,8 @@ def scenario_a(tmp_root):
     """Challenge in round 1, repair concedes item 5, stand-down in round 2."""
     packet = _load_fixture("fixture_packet.json")
     challenges_fixture = _load_fixture("fixture_challenges.json")
-    patient_dir = _make_patient_dir(tmp_root, "patient1")
-    _track_runs("patient1")
+    patient_dir = _make_patient_dir(tmp_root, "zz_testpatient")
+    _track_runs("zz_testpatient")
 
     def assemble(rubric, corpus_dir):
         assert isinstance(rubric, list) and rubric[0]["id"] == 1
@@ -154,10 +154,10 @@ def scenario_c(tmp_root):
 def check_persistence(final_state_a):
     """After scenario A: round0..round2 + final files exist, valid JSON, schema keys."""
     expected = [
-        os.path.join(RUNS_DIR, "patient1_round0.json"),
-        os.path.join(RUNS_DIR, "patient1_round1.json"),
-        os.path.join(RUNS_DIR, "patient1_round2.json"),
-        os.path.join(RUNS_DIR, "patient1_final.json"),
+        os.path.join(RUNS_DIR, "zz_testpatient_round0.json"),
+        os.path.join(RUNS_DIR, "zz_testpatient_round1.json"),
+        os.path.join(RUNS_DIR, "zz_testpatient_round2.json"),
+        os.path.join(RUNS_DIR, "zz_testpatient_final.json"),
     ]
     for path in expected:
         assert os.path.exists(path), "missing persisted file: %s" % path
@@ -167,9 +167,9 @@ def check_persistence(final_state_a):
             "run_state schema keys missing in %s: %s" % (path, RUN_STATE_KEYS - set(state.keys())))
         assert isinstance(state["packet"], list)
         assert isinstance(state["challenges"], list)
-        assert state["patient_id"] == "patient1"
+        assert state["patient_id"] == "zz_testpatient"
 
-    with open(os.path.join(RUNS_DIR, "patient1_final.json")) as f:
+    with open(os.path.join(RUNS_DIR, "zz_testpatient_final.json")) as f:
         final = json.load(f)
     assert final["terminal_state"] == final_state_a["terminal_state"]
     assert final["round"] == 2

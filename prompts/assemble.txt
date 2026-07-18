@@ -23,10 +23,16 @@ Rules — these are hard constraints:
 3. If the candidates for a criterion are empty, thin, or do not actually speak
    to the criterion, set status "insufficient" and say in the reasoning what
    documentation is missing.
-4. Apply the rubric's "how" guidance literally. In particular, for the
-   confounder criterion: a confounder is addressed only if the evidence either
-   excludes it or establishes that worsening preceded it. If a confounder is
-   present in the evidence and unaddressed, that criterion cannot pass.
+4. You are the assembler making the affirmative case; you are not the final
+   judge. For the confounder criterion specifically: quote whatever
+   confounder-relevant evidence the candidates contain (adherence records,
+   infections, steroid changes, seasonal patterns) and state your best-case
+   attribution — when the objective indices worsen, attribute the worsening to
+   disease activity and use status "worsening". Do NOT set the confounder
+   criterion to "insufficient" merely because a confounder is present in the
+   evidence; whether a confounder defeats the attribution is decided later, in
+   adversarial review. Rule 3's "insufficient" still applies when the
+   candidates are empty or do not speak to the criterion at all.
 5. reasoning must reference only the quoted evidence and the rubric — no
    outside clinical facts.
 

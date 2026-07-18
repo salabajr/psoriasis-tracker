@@ -23,9 +23,6 @@ RUNS_DIR = os.path.join(_REPO_ROOT, "runs")
 RUBRIC_PATH = os.path.join(_REPO_ROOT, "rubric.json")
 
 # Rubric items whose failure alone forces INSUFFICIENT_EVIDENCE.
-LOAD_BEARING_IDS = {1, 5}
-
-
 def _load_rubric() -> list:
     with open(RUBRIC_PATH, "r") as f:
         return json.load(f)
@@ -34,15 +31,25 @@ def _load_rubric() -> list:
 def _compute_terminal(packet: list) -> str:
     """Terminal logic (contracts.md binding clarification #9).
 
-    - Any load-bearing item (ids 1, 5) with status "insufficient"
-      -> INSUFFICIENT_EVIDENCE, regardless of round count.
+    - Item 1 "insufficient" -> INSUFFICIENT_EVIDENCE: no severity claim can
+      be made at all.
+    - Item 1 "worsening" with item 5 "insufficient" -> INSUFFICIENT_EVIDENCE:
+      the worsening claim stands on an unaddressed confounder. Item 5 is
+      load-bearing only when a worsening attribution is on the table — the
+      rubric's confounder rule is conditional ("Worsening cannot be
+      attributed ... if a confounder ... is unaddressed"), so with item 1
+      stable there is no attribution for a confounder to defeat.
     - Else item 1 "worsening" -> CONFIRMED_WORSENING.
     - Else -> STABLE.
+    Terminal is computed whenever B stands down or the round cap is hit,
+    regardless of round count.
     """
     status_by_id = {entry.get("criterion_id"): entry.get("status") for entry in packet}
-    if any(status_by_id.get(cid) == "insufficient" for cid in LOAD_BEARING_IDS):
+    if status_by_id.get(1) == "insufficient":
         return "INSUFFICIENT_EVIDENCE"
     if status_by_id.get(1) == "worsening":
+        if status_by_id.get(5) == "insufficient":
+            return "INSUFFICIENT_EVIDENCE"
         return "CONFIRMED_WORSENING"
     return "STABLE"
 

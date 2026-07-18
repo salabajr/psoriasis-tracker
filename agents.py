@@ -245,7 +245,7 @@ def _normalize_entry(raw, rubric_item, corpus_dir, allowed_pairs):
 # assemble's search loop, and is recorded in run_state["search_trace"]. It is
 # never a review challenge (invariant #2).
 _SYNONYMS = {
-    "nail involvement": ["onycholysis", "nail pitting"],
+    "nail involvement": ["onycholysis"],
     "PASI BSA IGA": ["psoriasis severity score", "IGA severity assessment"],
     "DLQI": ["dermatology life quality index", "quality of life score"],
     "current regimen adherence doses": ["missed doses", "medication adherence"],
@@ -302,13 +302,21 @@ def _search_criterion(rubric_item: dict, corpus_dir: str):
         rubric_item, _initial_query(rubric_item)
     )
     attempts, candidates, resolved_in = [], [], None
+    seen = set()
     for query in queries[:3]:
+        # Keep reformulating until the evidence spans at least two distinct
+        # documents (triangulation) or the query chain is exhausted. A single
+        # criterion often has facets in different notes (e.g. a therapy start
+        # in one note and its adherence record in another).
+        if len({c["doc_id"] for c in candidates}) >= 2:
+            break
+        already_resolved = resolved_in is not None
+        added = 0
         attempts.append(query)
         try:
             results = tools_mod.chart_search(query, corpus_dir) or []
         except Exception:
             results = []
-        verified = []
         for r in results:
             if not isinstance(r, dict):
                 continue
@@ -316,15 +324,21 @@ def _search_criterion(rubric_item: dict, corpus_dir: str):
             date = r.get("date", "")
             if not (isinstance(doc_id, str) and isinstance(quote, str)):
                 continue
+            if (doc_id, quote) in seen:
+                continue
             try:
                 if tools_mod.verify_quote(doc_id, quote, corpus_dir):
-                    verified.append({"doc_id": doc_id, "quote": quote, "date": date})
+                    seen.add((doc_id, quote))
+                    candidates.append({"doc_id": doc_id, "quote": quote, "date": date})
+                    added += 1
+                    if resolved_in is None:
+                        resolved_in = doc_id
             except Exception:
                 continue
-        if verified:
-            candidates = verified
-            resolved_in = verified[0]["doc_id"]
-            break
+        if already_resolved and added == 0:
+            # A post-resolution triangulation query that contributed nothing
+            # does not belong in the trace of attempts that shaped the packet.
+            attempts.pop()
     trace = {
         "criterion_id": rubric_item["id"],
         "attempts": attempts,
