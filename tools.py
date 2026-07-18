@@ -14,7 +14,7 @@ import re
 import sys
 from pathlib import Path
 
-from config import MODEL, TEMPERATURE, CACHE_PREFIX
+from config import MODEL, TEMPERATURE, CACHE_PREFIX, IS_FABLE, FALLBACK_MODEL
 
 MAX_RESULTS = 5
 
@@ -192,13 +192,23 @@ def _rank_with_claude(
     system = [{"type": "text", "text": _SEARCH_SYSTEM_PROMPT}, corpus_block]
 
     client = anthropic.Anthropic()
-    response = client.messages.create(
+    kwargs = dict(
         model=MODEL,
-        max_tokens=1500,
-        temperature=TEMPERATURE,
+        max_tokens=6000 if IS_FABLE else 1500,
         system=system,
         messages=[{"role": "user", "content": f"Query: {query}\n\nReturn the JSON array now."}],
     )
+    if IS_FABLE:
+        # Fable 5: temperature rejected; keep ranking snappy at low effort,
+        # with the server-side refusal fallback enabled.
+        response = client.beta.messages.create(
+            betas=["server-side-fallback-2026-06-01"],
+            fallbacks=[{"model": FALLBACK_MODEL}],
+            output_config={"effort": "low"},
+            **kwargs,
+        )
+    else:
+        response = client.messages.create(temperature=TEMPERATURE, **kwargs)
 
     text = "".join(b.text for b in response.content if b.type == "text")
     raw = _extract_json_array(text)
@@ -280,3 +290,53 @@ def _rank_offline(
             "score": round(score, 4),
         })
     return results
+
+
+# ---------------------------------------------------------------------------
+# Pharmacy dispense feed (Agent B's evidence domain — Agent A never calls these)
+# ---------------------------------------------------------------------------
+# File-backed FHIR MedicationDispense bundles. The interface is shaped so a
+# production build swaps in a Surescripts medication-history adapter behind
+# the same signature; the agent never knows the difference.
+
+_PHARMACY_DIR = Path(__file__).resolve().parent / "data" / "pharmacy"
+_EMPTY_BUNDLE = {"resourceType": "Bundle", "type": "searchset", "entry": []}
+
+
+def _resolve_pharmacy_id(patient_id: str) -> str:
+    """Map run labels to a bundle file (demo aliasing for pasted-chart runs)."""
+    pid = re.sub(r"[^\w\-]", "_", str(patient_id or ""))
+    if (_PHARMACY_DIR / ("%s.json" % pid)).exists():
+        return pid
+    if "twin" in pid:
+        return "patient1_twin"
+    if "patient1" in pid or "v1_v2" in pid or pid in ("pasted_chart", "pasted_demo", "missing_baseline"):
+        return "patient1"
+    return pid
+
+
+def pharmacy_lookup(patient_id: str) -> dict:
+    """Return the patient's FHIR MedicationDispense bundle. Pure file read,
+    NO model call. Unknown patients get an empty searchset bundle."""
+    path = _PHARMACY_DIR / ("%s.json" % _resolve_pharmacy_id(patient_id))
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            bundle = json.load(f)
+        if isinstance(bundle, dict) and bundle.get("resourceType") == "Bundle":
+            return bundle
+    except (OSError, json.JSONDecodeError):
+        pass
+    return dict(_EMPTY_BUNDLE)
+
+
+def verify_dispense(resource_id: str, patient_id: str) -> bool:
+    """Deterministic grounding check: the cited resource_id exists in that
+    patient's bundle. The dispense-side twin of verify_quote."""
+    if not isinstance(resource_id, str) or not resource_id.strip():
+        return False
+    bundle = pharmacy_lookup(patient_id)
+    for entry in bundle.get("entry", []):
+        resource = entry.get("resource", {}) if isinstance(entry, dict) else {}
+        if resource.get("id") == resource_id:
+            return True
+    return False

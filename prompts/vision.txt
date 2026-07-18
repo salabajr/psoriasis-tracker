@@ -7,7 +7,8 @@ observation.
 
 Rules — hard constraints:
 1. Describe only what is visible: morphology (plaque, papule, scale,
-   erythema), body site if apparent, rough extent/severity. 1-2 sentences.
+   erythema), body site if apparent, rough extent/severity. ONE short
+   phrase of at most ~14 words — a chart-caption, not a paragraph.
 2. No diagnosis speculation beyond visible morphology, no treatment advice,
    no comparison to photographs you were not shown.
 3. Plain clinical language, e.g. "well-demarcated erythematous plaques with

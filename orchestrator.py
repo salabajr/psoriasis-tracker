@@ -72,6 +72,21 @@ def _persist_final(run_state: dict) -> None:
     _persist(run_state, "%s_final.json" % run_state["patient_id"])
 
 
+def _consume_tool_trace() -> list:
+    """Drain Agent B's tool-call trace (empty when agents is stubbed/unused).
+
+    Never imports agents — stubbed test runs must not load it.
+    """
+    import sys as _sys
+    mod = _sys.modules.get("agents")
+    if mod is None:
+        return []
+    try:
+        return mod.consume_tool_trace()
+    except Exception:
+        return []
+
+
 def _maybe_notify(run_state: dict, notify) -> None:
     """Agent B as communicator: patient-facing SMS on a decisive verdict."""
     if notify is None:
@@ -119,6 +134,9 @@ def run(patient_dir: str, assemble=None, review=None, repair=None, notify=None) 
             events.emit("sys", "round", "Round %d: adversarial review" % round_num,
                         round=round_num)
             challenges = review(run_state["packet"], rubric)
+            for trace_entry in _consume_tool_trace():
+                trace_entry["round"] = round_num
+                run_state.setdefault("tool_trace", []).append(trace_entry)
             run_state["challenges"].append(challenges)
             run_state["round"] = round_num
 
@@ -153,8 +171,10 @@ def run(patient_dir: str, assemble=None, review=None, repair=None, notify=None) 
                             )
                             events.emit(
                                 "sys", "info",
-                                "Two-strikes rule: item %s challenged twice — "
-                                "concession forced" % cid, criterion=cid)
+                                "Question %s has now been disputed twice "
+                                "without resolution — it's marked 'not enough "
+                                "documentation' and the debate moves on."
+                                % cid, criterion=cid)
             _persist_round(run_state)
 
         # Round cap reached with B still challenging: terminal on current packet.

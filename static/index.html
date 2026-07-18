@@ -40,6 +40,8 @@
            border: 1px solid var(--line); background: #fff; color: var(--ink);
            padding: 9px 12px; cursor: pointer; }
   button:hover { border-color: var(--accent); color: var(--accent); }
+  .presets button.selected { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .presets button.selected:hover { filter: brightness(1.08); color: #fff; }
   button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
   button.primary:hover { filter: brightness(1.08); color: #fff; }
   button:disabled { opacity: 0.5; cursor: default; }
@@ -88,10 +90,28 @@
   .evt.concede { border-color: #e3a0a6; }
   .evt.concede .who { color: var(--bad); }
   .evt.challenge { border-color: #d9b45e; }
+  .evt.gap { border-color: #d9b45e; background: #fdf9ee; }
+  .evt.tool { border-color: #b7a6e3; background: #f6f3fc;
+              font: 12.5px/1.5 var(--mono); }
+  .evt.tool .who { color: #5b3fa8; }
+  .extev { margin-top: 6px; padding: 6px 10px; border-radius: 6px;
+           background: #f6f3fc; border: 1px solid #d9cff0; font-size: 12.5px; }
+  .extev b { color: #5b3fa8; display: block; font-size: 11px;
+             text-transform: uppercase; letter-spacing: 0.05em; }
+  .extev .rid { font: 11.5px var(--mono); color: #5b3fa8; }
+  .gapnote { margin-top: 6px; padding: 6px 10px; border-radius: 6px;
+             background: #fdf6e7; border: 1px solid #ecd9ab; font-size: 12.5px;
+             color: var(--b-ink); }
   .evt .rubricquote { margin-top: 6px; padding: 6px 10px; border-left: 3px solid var(--b-line);
                       font-size: 12.5px; font-style: italic; color: var(--muted); }
   .evt .wws { margin-top: 6px; font-size: 12.5px; }
   .evt .wws b { color: var(--b-ink); }
+  .evt .livetext { font: 11.5px/1.5 var(--mono); white-space: pre-wrap;
+                   word-break: break-word; color: var(--muted); margin: 2px 0 0;
+                   max-height: 180px; overflow-y: auto; }
+  .evt.live .livetext::after { content: "▋"; animation: caret 1s steps(1) infinite;
+                               color: var(--accent); }
+  @keyframes caret { 50% { opacity: 0; } }
   .divider { text-align: center; color: var(--muted); font-size: 12px; font-weight: 700;
              text-transform: uppercase; letter-spacing: 0.1em; margin: 8px 0;
              display: flex; align-items: center; gap: 12px; }
@@ -308,13 +328,21 @@ fetch("/presets").then(r => r.json()).then(p => {
 $("p1").onclick = () => setPreset("patient1", "patient1");
 $("p2").onclick = () => setPreset("patient1_twin", "patient1_twin");
 $("p3").onclick = () => setPreset("v1_v2_slice", "v1_v2_slice");
+const PRESET_BTN = { patient1: "p1", patient1_twin: "p2", v1_v2_slice: "p3" };
+function markPreset(key) {
+  for (const id of Object.values(PRESET_BTN))
+    $(id).classList.toggle("selected", id === PRESET_BTN[key]);
+}
 function setPreset(key, label) {
   if (!presets) return;
   $("notes").value = presets[key].text;
   $("notes").dataset.label = label;
   chartImages = presets[key].images || [];
   renderPhotoStrip();
+  markPreset(key);
 }
+// Hand-edited chart is no longer any preset — drop the highlight.
+$("notes").addEventListener("input", () => markPreset(null));
 
 function renderPhotoStrip() {
   const strip = $("photolist");
@@ -400,9 +428,37 @@ function esc(s) { const d = document.createElement("div"); d.textContent = s == 
 function addEvent(e) {
   const feed = $("feed");
   if (e.type === "start") { return; }
+  if (e.type === "delta") {
+    const sid = (e.data || {}).sid || "s0";
+    let d = document.getElementById("live-" + sid);
+    if (!d) {
+      d = document.createElement("div");
+      d.id = "live-" + sid;
+      d.className = "evt live " + e.actor;
+      const who = e.actor === "A" ? "Agent A — writing…" : "Agent B — writing…";
+      d.innerHTML = '<div class="who">' + who + '</div><pre class="livetext"></pre>';
+      feed.appendChild(d);
+    }
+    const pre = d.querySelector(".livetext");
+    if (e.text) {
+      pre.textContent += e.text;
+      pre.scrollTop = pre.scrollHeight;  // follow the tail inside the bubble
+    }
+    if ((e.data || {}).done) {
+      // Stream finished: collapse the raw output so the human-readable
+      // summary events that follow stay prominent.
+      d.classList.remove("live");
+      const raw = pre.textContent;
+      const who = e.actor === "A" ? "Agent A" : "Agent B";
+      d.innerHTML = '<div class="who">' + who + ' — finished writing</div>' +
+        '<details><summary>raw model output</summary><pre class="livetext">' +
+        esc(raw) + "</pre></details>";
+    }
+    autoscroll(); return;
+  }
   if (e.type === "tick") {
     ticks += 1;
-    setProgress(2 + ticks * 9, "Agent A: evidence gathered for criterion " + ((e.data || {}).criterion));
+    setProgress(2 + ticks * 9, "Agent A is working through the chart — question " + ((e.data || {}).criterion) + " done");
     return;
   }
   if (e.type === "round") {
@@ -447,22 +503,29 @@ function addEvent(e) {
 
   const div = document.createElement("div");
   div.className = "evt " + e.actor + " " + e.type;
-  const who = e.actor === "A" ? "Agent A — assembler" :
-              e.actor === "B" ? "Agent B — reviewer" : "system";
+  const who = e.actor === "A" ? "Agent A — chart reviewer" :
+              e.type === "tool" ? "Agent B — pharmacy check" :
+              e.actor === "B" ? "Agent B — nurse auditor" : "system";
   let inner = '<div class="who">' + who + "</div>" + esc(e.text);
   if (e.type === "challenge" && e.data) {
     if (e.data.rubric_quote)
       inner += '<div class="rubricquote">rubric: “' + esc(e.data.rubric_quote) + '”</div>';
+    if (e.data.external_evidence && e.data.external_evidence.length) {
+      inner += '<div class="extev"><b>External evidence — pharmacy dispense feed</b>' +
+        e.data.external_evidence.map(x =>
+          '<div><span class="rid">' + esc(x.resource_id) + "</span> · " +
+          esc(x.detail) + "</div>").join("") + "</div>";
+    }
     if (e.data.what_would_satisfy)
-      inner += '<div class="wws"><b>What would satisfy B:</b> ' + esc(e.data.what_would_satisfy) + "</div>";
+      inner += '<div class="wws"><b>What would settle it:</b> ' + esc(e.data.what_would_satisfy) + "</div>";
   }
   div.innerHTML = inner;
   feed.appendChild(div);
 
   if (e.type === "phase" && e.actor === "A" && e.text.indexOf("reading") >= 0)
     setProgress(4, "Agent A is searching the chart…");
-  if (e.type === "info" && e.text.indexOf("drafting") >= 0)
-    setProgress(50, "Agent A is drafting the packet…");
+  if (e.type === "info" && e.text.indexOf("writing up") >= 0)
+    setProgress(50, "Agent A is writing up the evidence packet…");
   if (e.type === "phase" && e.actor === "B") setProgress(progress + 4, "Agent B is reviewing…");
   if (e.type === "challenge") setProgress(progress + 4, "Agent B has challenged the packet");
   if (e.type === "concede") setProgress(progress + 4, "Agent A concedes");
@@ -555,7 +618,10 @@ function renderMatrix(st) {
         '”<br><span class="docref">' + esc(ev.doc_id) + " · " + esc(ev.date) +
         tag + "</span></blockquote>";
     }).join("");
-    tr.innerHTML = "<td>" + e.criterion_id + "</td><td>" + esc(e.criterion_text) +
+    const gap = e.gap
+      ? '<div class="gapnote">&#9888;&#xFE0E; <b>Documentation gap:</b> ' + esc(e.gap) + "</div>"
+      : "";
+    tr.innerHTML = "<td>" + e.criterion_id + "</td><td>" + esc(e.criterion_text) + gap +
       "<details><summary>evidence &amp; reasoning</summary>" + evid +
       '<div style="font-size:13px;color:var(--muted)">' + esc(e.reasoning) +
       "</div></details></td>" +
@@ -567,6 +633,16 @@ function renderMatrix(st) {
 function renderTrace(st) {
   const box = $("trace");
   box.innerHTML = "";
+  (st.tool_trace || []).forEach(t => {
+    const div = document.createElement("div");
+    div.style.marginBottom = "6px";
+    div.innerHTML = '<span class="tracechip" style="background:#f6f3fc;color:#5b3fa8">' +
+      "&#128279; " + esc(t.tool) + "(" + esc(t.patient_id) + ") → " +
+      t.n_results + " dispense record(s)</span> " +
+      '<span class="docref">external verification call · Agent B · round ' +
+      esc(t.round) + "</span>";
+    box.appendChild(div);
+  });
   (st.search_trace || []).forEach(t => {
     const div = document.createElement("div");
     div.style.marginBottom = "6px";
@@ -589,17 +665,19 @@ function renderTrace(st) {
 /* ---------- polling ---------- */
 let lastStateJson = "";
 async function pollEvents() {
+  let delay = 1000;
   try {
     const r = await fetch("/events?after=" + cursor);
     const j = await r.json();
     (j.events || []).forEach(addEvent);
     cursor = j.next || cursor;
+    if (j.running) delay = 300;  // stream deltas land near-live during a run
     if (!j.running && terminalSeen === null && cursor > 0) {
       $("runbtn").disabled = false; $("replaybtn").disabled = false;
     }
     if (j.error) $("runerr").textContent = j.error;
   } catch (e) { /* server restarting; keep polling */ }
-  setTimeout(pollEvents, 1000);
+  setTimeout(pollEvents, delay);
 }
 async function pollState() {
   try {

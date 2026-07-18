@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 
 import config
 
@@ -143,7 +144,80 @@ def _parse_json(text: str):
     return json.loads(s[start : end + 1])
 
 
-def _call_claude(system_blocks: list, user_content: str):
+_STREAM_SEQ = 0
+
+
+def _stream_message(client, kwargs: dict, actor: str):
+    """Stream one model call, emitting throttled "delta" transcript events.
+
+    Each delta carries a stream id (sid) so the UI can grow one bubble per
+    call; the final delta has done=True. Returns the final Message, or None
+    when this client can't stream (mocked clients, old SDKs) — the caller
+    then falls back to the blocking path.
+    """
+    global _STREAM_SEQ
+    try:
+        if getattr(config, "IS_FABLE", False):
+            cm = client.beta.messages.stream(
+                betas=["server-side-fallback-2026-06-01"],
+                fallbacks=[{"model": config.FALLBACK_MODEL}],
+                **kwargs,
+            )
+        else:
+            cm = client.messages.stream(temperature=config.TEMPERATURE, **kwargs)
+    except (AttributeError, TypeError):
+        return None
+
+    _STREAM_SEQ += 1
+    sid = "s%d" % _STREAM_SEQ
+    buf, last = [], [0.0]
+
+    def _flush(done=False):
+        chunk = "".join(buf)
+        if chunk or done:
+            events.emit(actor, "delta", chunk, sid=sid, done=done)
+            del buf[:]
+            last[0] = time.time()
+
+    with cm as stream:
+        for piece in stream.text_stream:
+            buf.append(piece)
+            if sum(map(len, buf)) >= 150 or time.time() - last[0] >= 0.4:
+                _flush()
+        _flush(done=True)
+        return stream.get_final_message()
+
+
+def _create_message(client, kwargs: dict, actor: str = None):
+    """Model-aware messages.create (every Claude call funnels through here).
+
+    Fable 5: no temperature (rejected), server-side refusal fallback via the
+    beta endpoint. Other models: plain create with config.TEMPERATURE.
+
+    When an actor is given and a demo event stream is open, the call streams
+    and the transcript sees the output live; any streaming failure falls back
+    to the blocking call (the demo must never take down the pipeline).
+    """
+    if actor and events.is_active():
+        try:
+            msg = _stream_message(client, kwargs, actor)
+            if msg is not None:
+                return msg
+        except Exception:
+            pass
+    if getattr(config, "IS_FABLE", False):
+        try:
+            return client.beta.messages.create(
+                betas=["server-side-fallback-2026-06-01"],
+                fallbacks=[{"model": config.FALLBACK_MODEL}],
+                **kwargs,
+            )
+        except AttributeError:
+            pass  # mocked client without a beta surface (unit tests)
+    return client.messages.create(temperature=config.TEMPERATURE, **kwargs)
+
+
+def _call_claude(system_blocks: list, user_content: str, actor: str = None):
     """One shared entry point for every Claude call in this module.
 
     Requests JSON output; parses it robustly, retrying exactly once on a
@@ -151,15 +225,14 @@ def _call_claude(system_blocks: list, user_content: str):
     """
     client = _get_client()
 
-    def _go(content: str) -> str:
-        response = client.messages.create(
+    def _go(content) -> str:
+        kwargs = dict(
             model=config.MODEL,
-            max_tokens=4096,
-            temperature=config.TEMPERATURE,
+            max_tokens=getattr(config, "MAX_TOKENS", 4096),
             system=system_blocks,
             messages=[{"role": "user", "content": content}],
         )
-        return _extract_text(response)
+        return _extract_text(_create_message(client, kwargs, actor=actor))
 
     text = _go(user_content)
     try:
@@ -237,7 +310,7 @@ def _normalize_entry(raw, rubric_item, corpus_dir, allowed_pairs):
     rubric_ref = entry.get("rubric_ref")
     if not isinstance(rubric_ref, str) or not rubric_ref.strip():
         rubric_ref = str(rid)
-    return {
+    out = {
         "criterion_id": rid,
         "criterion_text": rubric_item["text"],
         "status": status,
@@ -245,6 +318,10 @@ def _normalize_entry(raw, rubric_item, corpus_dir, allowed_pairs):
         "reasoning": reasoning,
         "rubric_ref": rubric_ref,
     }
+    gap = entry.get("gap")
+    if isinstance(gap, str) and gap.strip():
+        out["gap"] = gap.strip()[:300]
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -348,21 +425,8 @@ def _search_criterion(rubric_item: dict, corpus_dir: str):
                         resolved_in = doc_id
             except Exception:
                 continue
-        if added:
-            events.emit(
-                "A", "search",
-                'Criterion %s: searched "%s" — %d verified quote(s) from %s'
-                % (rubric_item["id"], query, added, ", ".join(sorted(attempt_docs))),
-                criterion=rubric_item["id"], query=query, hits=added,
-            )
-        else:
-            events.emit(
-                "A", "search",
-                'Criterion %s: searched "%s" — no hits%s'
-                % (rubric_item["id"], query,
-                   "" if already_resolved else ", reformulating"),
-                criterion=rubric_item["id"], query=query, hits=0,
-            )
+        # Per-query events were too noisy for the demo transcript; the full
+        # query-by-query trail lives in the Search trace panel (run_state).
         if already_resolved and added == 0:
             # A post-resolution triangulation query that contributed nothing
             # does not belong in the trace of attempts that shaped the packet.
@@ -429,7 +493,7 @@ def _photo_findings(corpus_dir: str) -> list:
                     "text": "Write one observation per photograph. "
                             "JSON array only."})
     try:
-        raw = _call_claude(_system_blocks("vision"), content)
+        raw = _call_claude(_system_blocks("vision"), content, actor="A")
     except Exception:
         return []
     findings = []
@@ -446,17 +510,25 @@ def _photo_findings(corpus_dir: str) -> list:
         entry = {"doc_id": rel, "quote": finding,
                  "date": visit_dates.get(visit, "")}
         findings.append(entry)
+    if findings:
+        # One line for the whole photo review — per-image captions stay in
+        # the data payload, not the demo transcript.
         events.emit("A", "photo",
-                    "\U0001F4F7 Examined %s — %s" % (rel, _trunc(finding, 160)),
-                    doc_id=rel, finding=finding)
+                    "\U0001F4F7 We looked at the %d photograph(s) filed to the "
+                    "chart and noted what's visible in each." % len(findings),
+                    files=[f["doc_id"] for f in findings],
+                    findings=[f["quote"] for f in findings])
     return findings
 
 
 def assemble(rubric: list, corpus_dir: str) -> dict:
     """Build the round-0 run_state: search the chart, then draft the packet."""
+    global _LAST_PATIENT_ID
+    _LAST_PATIENT_ID = os.path.basename(os.path.normpath(corpus_dir))
     events.emit("A", "phase",
-                "Agent A is reading the chart and gathering evidence for "
-                "%d rubric criteria" % len(rubric))
+                "We're reading the patient's chart, looking for evidence on "
+                "each of the %d rubric questions. We only keep quotes we can "
+                "verify word-for-word against the notes." % len(rubric))
     photo_findings = _photo_findings(corpus_dir)
     search_trace = []
     candidates_by_id = {}
@@ -464,6 +536,13 @@ def assemble(rubric: list, corpus_dir: str) -> dict:
         trace, candidates = _search_criterion(item, corpus_dir)
         search_trace.append(trace)
         candidates_by_id[item["id"]] = candidates
+    n_queries = sum(len(t.get("attempts", [])) for t in search_trace)
+    n_quotes = sum(len(v) for v in candidates_by_id.values())
+    events.emit("A", "info",
+                "We searched the chart %d different ways and verified %d exact "
+                "quotes to work from. (The full search trail is in the panel "
+                "below.)" % (n_queries, n_quotes),
+                queries=n_queries, quotes=n_quotes)
 
     system_blocks = _system_blocks(
         "assemble",
@@ -490,9 +569,9 @@ def assemble(rubric: list, corpus_dir: str) -> dict:
         + json.dumps(user_payload, indent=2)
         + "\n\nBuild the evidence packet now. JSON array only."
     )
-    events.emit("A", "info", "Agent A is drafting the evidence packet from the "
-                             "verified quotes…")
-    raw = _call_claude(system_blocks, user_content)
+    events.emit("A", "info", "Now we're writing up what we found into the "
+                             "evidence packet…")
+    raw = _call_claude(system_blocks, user_content, actor="A")
     if isinstance(raw, dict):
         raw = raw.get("packet") or raw.get("entries") or []
     by_id = {}
@@ -513,8 +592,17 @@ def assemble(rubric: list, corpus_dir: str) -> dict:
             _normalize_entry(by_id.get(item["id"]), item, corpus_dir, allowed)
         )
 
+    for entry in packet:
+        if entry.get("gap"):
+            events.emit(
+                "A", "gap",
+                "⚠️ The chart is missing something for question %s: %s"
+                % (entry["criterion_id"], entry["gap"]),
+                criterion=entry["criterion_id"],
+            )
     events.emit(
-        "A", "packet", "Evidence packet assembled",
+        "A", "packet",
+        "Our evidence packet is ready — handing it to Agent B for review.",
         statuses={str(e["criterion_id"]): e["status"] for e in packet},
     )
     return {
@@ -589,8 +677,12 @@ def _challenge_violations(challenge: dict, doc_ids, dates, packet_blob, rubric_b
     return violations
 
 
-def _guard_challenges(raw, packet: list, rubric: list):
-    """Validate + filter model challenges. Returns (kept, violations, attempted)."""
+def _guard_challenges(raw, packet: list, rubric: list, extra_blob: str = ""):
+    """Validate + filter model challenges. Returns (kept, violations, attempted).
+
+    extra_blob is grounding material beyond the packet (e.g. pharmacy dispense
+    bundles B actually retrieved this round) — dates/spans from it are legal.
+    """
     if isinstance(raw, dict):
         raw = raw.get("challenges") or []
     if not isinstance(raw, list):
@@ -603,6 +695,9 @@ def _guard_challenges(raw, packet: list, rubric: list):
         except (TypeError, ValueError, AttributeError):
             continue
     doc_ids, dates, packet_blob, rubric_blob = _packet_grounding(packet, rubric)
+    if extra_blob:
+        packet_blob = packet_blob + " " + _norm_ws(extra_blob)
+        dates = set(dates) | set(_DATE_RE.findall(extra_blob))
     kept, violations = [], []
     for ch in raw:
         if not isinstance(ch, dict):
@@ -643,14 +738,15 @@ def _guard_challenges(raw, packet: list, rubric: list):
         ]
         if len(owners) == 1 and owners[0] != cid and owners[0] in packet_ids:
             cid = owners[0]
-        kept.append(
-            {
-                "criterion_id": cid,
-                "challenge_reason": fields["challenge_reason"],
-                "rubric_quote": fields["rubric_quote"],
-                "what_would_satisfy": fields["what_would_satisfy"],
-            }
-        )
+        kept_ch = {
+            "criterion_id": cid,
+            "challenge_reason": fields["challenge_reason"],
+            "rubric_quote": fields["rubric_quote"],
+            "what_would_satisfy": fields["what_would_satisfy"],
+        }
+        if isinstance(ch.get("external_evidence"), list):
+            kept_ch["external_evidence"] = ch["external_evidence"]
+        kept.append(kept_ch)
     return kept, violations, attempted
 
 
@@ -664,64 +760,212 @@ def _trunc(s, n: int) -> str:
 def _emit_review_result(challenges: list) -> list:
     if not challenges:
         events.emit("B", "standdown",
-                    "Agent B stands down — the packet is airtight under the rubric")
+                    "We have no objections — the evidence holds up under the "
+                    "rubric.")
     for c in challenges:
         events.emit(
             "B", "challenge",
-            "Agent B challenges item %s: %s"
+            "On question %s: %s"
             % (c.get("criterion_id"), _trunc(c.get("challenge_reason"), 320)),
             criterion=c.get("criterion_id"),
             rubric_quote=_trunc(c.get("rubric_quote"), 300),
             what_would_satisfy=_trunc(c.get("what_would_satisfy"), 400),
+            external_evidence=c.get("external_evidence", []),
         )
     return challenges
 
 
-def review(packet: list, rubric: list) -> list:
-    """Agent B: challenge the packet, or stand down with [].
+# ---------------------------------------------------------------------------
+# Agent B's pharmacy verification tool (B's ONLY tool; A never gets it)
+# ---------------------------------------------------------------------------
 
-    Inputs to the model are the packet + rubric ONLY (no chart access). After
-    the model responds, a code-level guard strips any challenge referencing
-    doc_ids/quotes/dates absent from the packet. If the guard strips everything
-    while the model clearly attempted a challenge, retry once with the
-    violations explained; if it still fails, give up and return [].
+PHARMACY_TOOL_SCHEMA = {
+    "name": "pharmacy_lookup",
+    "description": (
+        "Look up the patient's medication fill history from the pharmacy "
+        "dispense feed. Returns a FHIR MedicationDispense bundle: dispense "
+        "dates, medications, quantities, and days supplied. Call only when "
+        "an adherence question bears on a claim under review."
+    ),
+    "input_schema": {
+        "type": "object",
+        "properties": {
+            "patient_id": {"type": "string",
+                           "description": "The patient id under review."}
+        },
+        "required": ["patient_id"],
+    },
+}
+
+_LAST_PATIENT_ID = None   # set by assemble(); review() has no patient_id param
+_TOOL_TRACE = []          # drained by orchestrator via consume_tool_trace()
+
+
+def consume_tool_trace() -> list:
+    """Return and clear tool-trace entries accumulated since the last call."""
+    global _TOOL_TRACE
+    trace, _TOOL_TRACE = _TOOL_TRACE, []
+    return trace
+
+
+def _review_round(system_blocks: list, user_content: str, patient_id: str):
+    """Agent B's tool-use loop: at most 3 model calls, at most 2 pharmacy
+    lookups per review round. Returns (parsed_json_or_None, bundles)."""
+    client = _get_client()
+    tools_mod = _get_tools()
+    messages = [{"role": "user", "content": user_content}]
+    bundles, lookups, creates = [], 0, 0
+    while creates < 3:
+        creates += 1
+        kwargs = dict(
+            model=config.MODEL,
+            max_tokens=getattr(config, "MAX_TOKENS", 4096),
+            system=system_blocks,
+            messages=messages,
+            tools=[PHARMACY_TOOL_SCHEMA],
+        )
+        response = _create_message(client, kwargs, actor="B")
+        content = getattr(response, "content", []) or []
+        tool_uses = [b for b in content if getattr(b, "type", "") == "tool_use"]
+        if getattr(response, "stop_reason", None) == "tool_use" and tool_uses \
+                and creates < 3:
+            results = []
+            for block in tool_uses:
+                if block.name == "pharmacy_lookup" and lookups < 2:
+                    pid = str((getattr(block, "input", {}) or {})
+                              .get("patient_id") or patient_id)
+                    bundle = tools_mod.pharmacy_lookup(pid)
+                    n = len(bundle.get("entry", []))
+                    lookups += 1
+                    bundles.append(bundle)
+                    _TOOL_TRACE.append({"agent": "B", "tool": "pharmacy_lookup",
+                                        "patient_id": pid, "n_results": n})
+                    events.emit(
+                        "B", "tool",
+                        "Acting as the nurse, we called up the pharmacy's "
+                        "dispense records to see what was actually filled — "
+                        "%d record(s) on file." % n,
+                        patient_id=pid, n_results=n,
+                    )
+                    results.append({"type": "tool_result",
+                                    "tool_use_id": block.id,
+                                    "content": json.dumps(bundle)})
+                else:
+                    results.append({"type": "tool_result",
+                                    "tool_use_id": block.id,
+                                    "content": "Tool-call limit reached; finish "
+                                               "the review with what you have.",
+                                    "is_error": True})
+            messages.append({"role": "assistant", "content": content})
+            messages.append({"role": "user", "content": results})
+            continue
+        text = _extract_text(response)
+        try:
+            return _parse_json(text), bundles
+        except (ValueError, json.JSONDecodeError):
+            if creates >= 3:
+                break
+            messages.append({"role": "assistant", "content": content or
+                             [{"type": "text", "text": text or ""}]})
+            messages.append({"role": "user",
+                             "content": "Your previous reply was not valid "
+                                        "JSON. Respond with ONLY the JSON "
+                                        "array — no prose, no code fences."})
+    return None, bundles
+
+
+def _validate_external_evidence(challenges: list, patient_id: str):
+    """verify_dispense every cited resource_id (B's grounding guarantee).
+
+    Returns (challenges, dropped_ids). Invalid entries are stripped; a
+    challenge whose evidence all fails keeps its text but loses the field.
+    """
+    tools_mod = _get_tools()
+    dropped = []
+    for ch in challenges:
+        ev = ch.get("external_evidence")
+        if ev is None:
+            continue
+        kept = []
+        for item in ev if isinstance(ev, list) else []:
+            rid = item.get("resource_id") if isinstance(item, dict) else None
+            ok = False
+            try:
+                ok = bool(rid) and tools_mod.verify_dispense(rid, patient_id)
+            except Exception:
+                ok = False
+            if ok:
+                kept.append({
+                    "resource_type": str(item.get("resource_type",
+                                                  "MedicationDispense")),
+                    "resource_id": rid,
+                    "detail": str(item.get("detail", ""))[:300],
+                })
+            else:
+                dropped.append(str(rid))
+        if kept:
+            ch["external_evidence"] = kept
+        else:
+            ch.pop("external_evidence", None)
+    return challenges, dropped
+
+
+def review(packet: list, rubric: list) -> list:
+    """Agent B (nurse verifier): challenge the packet, or stand down with [].
+
+    B has NO chart access — inputs are packet + rubric + (on demand) the
+    pharmacy dispense feed via pharmacy_lookup, B's only tool. After the model
+    responds, a code-level guard strips any challenge referencing material
+    outside packet/rubric/retrieved-bundles, and verify_dispense validates
+    every cited resource_id. Guard failures get one explained retry.
     """
     events.emit("B", "phase",
-                "Agent B is reviewing the packet — packet + rubric only, "
-                "no chart access")
+                "We're checking Agent A's evidence against the rubric. We "
+                "never see the chart ourselves — only what A quoted, plus "
+                "outside records like the pharmacy's if we need them.")
     system_blocks = _system_blocks("review", rubric_json=json.dumps(rubric, indent=2))
+    patient_id = _LAST_PATIENT_ID or "patient1"
     user_content = (
+        "PATIENT ID: " + patient_id + "\n\n"
         "EVIDENCE PACKET UNDER REVIEW:\n"
         + json.dumps(packet, indent=2)
         + "\n\nReview the packet against the rubric. JSON array only "
         "(return [] to stand down)."
     )
-    try:
-        raw = _call_claude(system_blocks, user_content)
-    except (ValueError, json.JSONDecodeError):
+    raw, bundles = _review_round(system_blocks, user_content, patient_id)
+    if raw is None:
         return _emit_review_result([])  # unusable output -> stand down
-    kept, violations, attempted = _guard_challenges(raw, packet, rubric)
-    if kept or not attempted:
+    bundle_blob = " ".join(json.dumps(b) for b in bundles)
+    kept, violations, attempted = _guard_challenges(
+        raw, packet, rubric, extra_blob=bundle_blob)
+    kept, dropped = _validate_external_evidence(kept, patient_id)
+    if (kept or not attempted) and not dropped:
         return _emit_review_result(kept)
-    # Guard stripped everything but the model clearly tried to challenge:
-    # retry once with the violations explained, then give up.
+    # Guard/dispense-check rejected something: retry once with the violations
+    # explained, then give up (silently dropping anything still invalid).
+    problems = violations[:8] + [
+        "cited dispense resource '%s' does not exist in this patient's bundle"
+        % rid for rid in dropped[:4]
+    ]
     retry_content = (
         user_content
-        + "\n\nYour previous challenges were REJECTED by a contract guard for "
-        "referencing material not present in the packet: "
-        + "; ".join(violations[:8])
-        + ". Remember: you have NO chart access — every doc_id, quote, and date "
-        "you mention must already appear in the packet above. Re-issue only "
-        "challenges grounded in the packet, or return [] to stand down."
+        + "\n\nYour previous challenges were REJECTED by a contract guard: "
+        + "; ".join(problems)
+        + ". Remember: you have NO chart access — every doc_id, quote, and "
+        "date you mention must come from the packet, the rubric, or a "
+        "dispense bundle you retrieved, and every external_evidence "
+        "resource_id must exist in that bundle. Re-issue only grounded "
+        "challenges, or return [] to stand down."
     )
     events.emit("B", "info",
-                "Contract guard rejected Agent B's draft challenges "
-                "(referenced material outside the packet) — retrying once")
-    try:
-        raw2 = _call_claude(system_blocks, retry_content)
-    except (ValueError, json.JSONDecodeError):
+                "Our first draft of the objections wasn't fully backed by "
+                "evidence, so we're rewriting it.")
+    raw2, bundles2 = _review_round(system_blocks, retry_content, patient_id)
+    if raw2 is None:
         return _emit_review_result([])
-    kept2, _, _ = _guard_challenges(raw2, packet, rubric)
+    blob2 = " ".join(json.dumps(b) for b in bundles + bundles2)
+    kept2, _, _ = _guard_challenges(raw2, packet, rubric, extra_blob=blob2)
+    kept2, _ = _validate_external_evidence(kept2, patient_id)
     return _emit_review_result(kept2)
 
 
@@ -769,8 +1013,8 @@ def repair(packet: list, challenges: list, corpus_dir: str) -> list:
     tools_mod = _get_tools()
     challenges = [c for c in (challenges or []) if isinstance(c, dict)]
     events.emit("A", "phase",
-                "Agent A is repairing the packet — targeting what would "
-                "satisfy %d challenge(s)" % len(challenges))
+                "We're going back to the chart to answer Agent B's "
+                "%d objection(s)." % len(challenges))
 
     new_evidence = {}
     for challenge in challenges:
@@ -802,14 +1046,15 @@ def repair(packet: list, challenges: list, corpus_dir: str) -> list:
         if found:
             events.emit(
                 "A", "search",
-                "Repair item %s: found %d new verified quote(s)" % (cid, len(found)),
+                "Question %s: we found new evidence in the chart that speaks "
+                "to B's objection." % cid,
                 criterion=cid, hits=len(found),
             )
         else:
             events.emit(
                 "A", "search",
-                "Repair item %s: the chart has nothing that satisfies the "
-                "challenge" % cid,
+                "Question %s: we searched again — the chart simply doesn't "
+                "contain what B asked for." % cid,
                 criterion=cid, hits=0,
             )
 
@@ -840,7 +1085,7 @@ def repair(packet: list, challenges: list, corpus_dir: str) -> list:
         + json.dumps(user_payload, indent=2)
         + "\n\nReturn the FULL patched packet now. JSON array only."
     )
-    raw = _call_claude(system_blocks, user_content)
+    raw = _call_claude(system_blocks, user_content, actor="A")
     if isinstance(raw, dict):
         raw = raw.get("packet") or []
     by_id = {}
@@ -886,8 +1131,9 @@ def repair(packet: list, challenges: list, corpus_dir: str) -> list:
             # The chart could not satisfy the challenge: force the concession.
             events.emit(
                 "A", "concede",
-                "Agent A concedes item %s — the chart cannot answer the "
-                "challenge; status set to insufficient" % cid,
+                "We concede question %s — the chart can't answer B's "
+                "objection, so we're marking it 'not enough documentation'."
+                % cid,
                 criterion=cid,
             )
             entry["status"] = "insufficient"
@@ -923,7 +1169,8 @@ def notify(run_state: dict) -> str:
     )
     with open(rubric_path, "r") as f:
         rubric = json.load(f)
-    events.emit("B", "phase", "Agent B is drafting a message to the patient…")
+    events.emit("B", "phase", "We're writing a plain-language text message to "
+                              "the patient about what happens next…")
     summary = [
         {
             "criterion_id": e.get("criterion_id"),
@@ -940,7 +1187,7 @@ def notify(run_state: dict) -> str:
         + "\n\nDraft the SMS now. JSON object only."
     )
     try:
-        raw = _call_claude(system_blocks, user_content)
+        raw = _call_claude(system_blocks, user_content, actor="B")
     except (ValueError, json.JSONDecodeError):
         return ""
     if isinstance(raw, dict):

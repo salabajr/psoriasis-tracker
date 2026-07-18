@@ -16,7 +16,7 @@ Widespread thick erythematous plaques with heavy scale over trunk, sacrum, elbow
 PASI 16.8, BSA 18%, IGA 3. DLQI 17. Compared with 2026-05-10 (PASI 14.2, DLQI 15), objective and quality-of-life measures are both worse.
 
 ## Assessment / Plan
-Chronic plaque psoriasis, worsened since last visit. Reviewed interval treatment course with patient; adherence and phototherapy attendance detail deferred to today's separate adherence review by clinic staff (filed separately). Plan: resume adalimumab per schedule with next dose today in clinic, re-establish NB-UVB 3x/wk, continue clobetasol to thickest plaques. Repeat CRP/ESR ordered. Return 4 weeks; if not clearly improving on a verified regimen at that point, will discuss dose-interval or agent change.
+Chronic plaque psoriasis, worsened again since last visit despite prescribed adalimumab therapy — clinical picture consistent with secondary loss of biologic response. Plan discussed with patient: switch biologic — will file prior authorization for an IL-23 inhibitor (guselkumab) this week; continue clobetasol to thickest plaques in the interim. Adherence and pharmacy fill detail deferred to today's separate review by clinic staff (filed separately). Repeat CRP/ESR ordered. Return 4 weeks after new agent starts.
 
 Electronically signed: Priya Raman, MD — 2026-06-29 14:12
 

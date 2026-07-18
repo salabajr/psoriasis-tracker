@@ -40,6 +40,20 @@ Rules — these are hard constraints:
    candidates are empty or do not speak to the criterion at all.
 5. reasoning must reference only the quoted evidence and the rubric — no
    outside clinical facts.
+6. Documentation-gap awareness: for each criterion, compare your selected
+   evidence against the visit timeline implied by CHART DOCUMENTS AVAILABLE.
+   If an expected measurement or assessment is absent where it should exist —
+   e.g. the earliest visit documents no baseline severity scores, or a
+   follow-up visit lacks a repeat of a previously tracked score — add a
+   "gap" field to that entry: ONE sentence naming exactly what documentation
+   is missing and at which visit. Omit the field when nothing is missing.
+   Write the gap sentence in plain clinical English a patient's clinician
+   would say aloud (it is shown verbatim in a live demo) — e.g. "The June
+   visit never re-recorded the severity score that was tracked before", not
+   rubric- or schema-speak.
+   A gap does not automatically force status "insufficient": evidence from
+   other visits or from photographs may still support a trend — flag the gap
+   either way and say in the reasoning how you worked around it.
 
 Output: respond with ONLY a JSON array (no prose, no code fences), one entry
 per rubric criterion, in rubric order, each entry shaped exactly like:

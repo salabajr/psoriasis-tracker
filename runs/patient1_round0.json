@@ -10,12 +10,12 @@
       "evidence": [
         {
           "doc_id": "visit1_derm_note",
-          "quote": "PASI 6.1, BSA 8%, IGA 2 (mild-to-moderate plaque elevation and scale).",
+          "quote": "Severity scoring today: PASI 6.1, BSA 8%, IGA 2",
           "date": "2026-02-02"
         },
         {
           "doc_id": "visit2_derm_note",
-          "quote": "PASI 6.3 today (baseline 6.1 on 2026-02-02 \u2014 essentially flat, within measurement noise). BSA 8%. IGA 2.",
+          "quote": "PASI 6.3 today (6.1 on 2026-02-02 \u2014 essentially flat, within measurement noise). BSA 8%. IGA 2.",
           "date": "2026-03-16"
         },
         {
@@ -27,9 +27,19 @@
           "doc_id": "visit4_derm_note",
           "quote": "PASI 16.8, BSA 18%, IGA 3. DLQI 17.",
           "date": "2026-06-29"
+        },
+        {
+          "doc_id": "images/visit1_arm.jpg",
+          "quote": "Few scattered erythematous papules on the antecubital arm, limited extent",
+          "date": "2026-02-02"
+        },
+        {
+          "doc_id": "images/visit4_arm.jpg",
+          "quote": "Confluent erythematous plaques with overlying scale over the arm, extensive",
+          "date": "2026-06-29"
         }
       ],
-      "reasoning": "Across four dated encounters, PASI rose from 6.1 (2026-02-02) to 6.3 (2026-03-16, essentially flat), then jumped to 14.2 (2026-05-10) and further to 16.8 (2026-06-29). This represents a PASI increase of approximately 10.7 points from baseline to the most recent visit, far exceeding the rubric threshold of \u22652 points. BSA similarly increased from 8% to 18%, and IGA stepped up from 2 to 3 between visit 2 and visit 3. All three objective measures show a clinically meaningful worsening trend across at least two dated encounters.",
+      "reasoning": "PASI rose from 6.1 (2026-02-02) and 6.3 (2026-03-16) to 14.2 (2026-05-10) and 16.8 (2026-06-29), a rise far exceeding the 2-point threshold; BSA rose from 8% to 18% and IGA stepped up from 2 to 3. The photographic progression from limited papules to extensive confluent plaques corroborates the objective worsening.",
       "rubric_ref": "1"
     },
     {
@@ -41,10 +51,36 @@
           "doc_id": "visit3_nursing_note",
           "quote": "onycholysis noted on two fingernails (right index and right middle), with distal separation and slight yellowish discoloration",
           "date": "2026-05-10"
+        },
+        {
+          "doc_id": "images/visit3_nails.jpg",
+          "quote": "Nail plate pitting with mild subungual discoloration and ridging",
+          "date": "2026-05-10"
+        },
+        {
+          "doc_id": "images/visit3_scalp.jpg",
+          "quote": "Erythematous scaly patch with scale along the frontal scalp hairline, localized",
+          "date": "2026-05-10"
+        },
+        {
+          "doc_id": "images/visit4_scalp.jpg",
+          "quote": "Thick adherent scale over erythematous frontal scalp plaques, moderate to extensive",
+          "date": "2026-06-29"
+        },
+        {
+          "doc_id": "images/visit2_arm.jpg",
+          "quote": "Grouped erythematous papules and small plaques over the arm, mild to moderate extent",
+          "date": "2026-03-16"
+        },
+        {
+          "doc_id": "images/visit4_arm.jpg",
+          "quote": "Confluent erythematous plaques with overlying scale over the arm, extensive",
+          "date": "2026-06-29"
         }
       ],
-      "reasoning": "The nursing note from 2026-05-10 documents new nail involvement \u2014 onycholysis on two fingernails with distal separation and yellowish discoloration \u2014 that was not mentioned in earlier visit notes (visits 1 and 2). Per the rubric, absence of mention in earlier notes is not evidence of absence, but the appearance of documented nail findings at visit 3 represents a new symptom domain being captured. This constitutes a directional change (worsening) in symptom trajectory. No joint involvement or scalp findings are documented in the candidates, but the nail findings alone support a worsening trajectory.",
-      "rubric_ref": "2"
+      "reasoning": "New nail involvement (onycholysis on two fingernails plus photographed pitting) appears on 2026-05-10, and photographs document scalp disease at 2026-05-10 that progresses from localized to moderate-to-extensive by 2026-06-29, alongside arm lesions progressing from mild-to-moderate papules to extensive confluent plaques. Together these show a worsening symptom trajectory including new nail and scalp sites. No joint symptoms are documented in the candidates.",
+      "rubric_ref": "2",
+      "gap": "No visit after May 10 re-examined or re-documented the fingernail changes that were first noted then."
     },
     {
       "criterion_id": 3,
@@ -53,12 +89,12 @@
       "evidence": [
         {
           "doc_id": "visit1_derm_note",
-          "quote": "Quality-of-life impact assessed with the Dermatology Life Quality Index: DLQI 7, driven by itch, clothing choices, and self-consciousness during exercise.",
+          "quote": "DLQI 7, driven by residual itch and self-consciousness at the gym.",
           "date": "2026-02-02"
         },
         {
           "doc_id": "visit2_derm_note",
-          "quote": "DLQI 8, reflecting ongoing nocturnal itch and mild sleep disturbance.",
+          "quote": "DLQI 8, reflecting minor residual itch.",
           "date": "2026-03-16"
         },
         {
@@ -68,11 +104,11 @@
         },
         {
           "doc_id": "visit4_derm_note",
-          "quote": "PASI 16.8, BSA 18%, IGA 3. DLQI 17. Compared with 2026-05-10 (PASI 14.2, DLQI 15), objective and quality-of-life measures are both worse.",
+          "quote": "DLQI 17. Compared with 2026-05-10 (PASI 14.2, DLQI 15), objective and quality-of-life measures are both worse.",
           "date": "2026-06-29"
         }
       ],
-      "reasoning": "DLQI scores across four dated encounters: 7 (2026-02-02), 8 (2026-03-16), 15 (2026-05-10), and 17 (2026-06-29). The increase from 8 to 15 between visits 2 and 3 alone represents a 7-point rise, exceeding the rubric threshold of \u22654 points. The further increase to 17 by visit 4 confirms a sustained upward trend. The visit 4 note explicitly states that quality-of-life measures are worse compared to visit 3. This is a clear, sustained worsening trajectory across all four encounters.",
+      "reasoning": "DLQI rose from 7 (2026-02-02) and 8 (2026-03-16) to 15 (2026-05-10) and 17 (2026-06-29). The jump from 8 to 15 exceeds the 4-point threshold for meaningful worsening, and the subsequent rise to 17 confirms a sustained upward trend.",
       "rubric_ref": "3"
     },
     {
@@ -81,32 +117,23 @@
       "status": "insufficient",
       "evidence": [
         {
-          "doc_id": "visit4_adherence_note",
-          "quote": "doses taken 2026-05-10 and 2026-05-24; doses due 2026-06-07 and 2026-06-21 were missed. Net: two missed doses, i.e., no biologic received in the 5 weeks prior to today.",
-          "date": "2026-06-29"
-        },
-        {
           "doc_id": "visit4_derm_note",
-          "quote": "adherence and phototherapy attendance detail deferred to today's separate adherence review by clinic staff (filed separately)",
+          "quote": "Adherence and pharmacy fill detail deferred to today's separate review by clinic staff (filed separately).",
           "date": "2026-06-29"
         }
       ],
-      "reasoning": "The adherence note documents that two consecutive biologic doses (due 2026-06-07 and 2026-06-21) were missed, resulting in no biologic received in the 5 weeks prior to the most recent visit (2026-06-29). The rubric specifies that missed doses or therapy gaps make adequacy unassessable. Because the most recent worsening interval (visit 3 to visit 4) coincides with a documented gap in biologic therapy, the current regimen cannot be assessed as having received an adequate, adherent trial. Treatment-response adequacy is therefore insufficient to confirm.",
-      "rubric_ref": "4"
+      "reasoning": "The only candidate speaking to adherence states that adherence and pharmacy fill details were deferred to a separately filed review that is not among the provided evidence. Without the regimen's start date, dosing schedule, or any record confirming doses were taken as scheduled, the adequacy of the treatment trial cannot be assessed from the quoted evidence.",
+      "rubric_ref": "4",
+      "gap": "The June 29 visit deferred the adherence and pharmacy-fill review to a separate document that is not in the chart provided."
     },
     {
       "criterion_id": 5,
       "criterion_text": "Worsening cannot be attributed to disease if a confounder (non-adherence, infection, steroid-withdrawal or seasonal flare) is unaddressed.",
-      "status": "worsening",
-      "evidence": [
-        {
-          "doc_id": "visit4_adherence_note",
-          "quote": "doses taken 2026-05-10 and 2026-05-24; doses due 2026-06-07 and 2026-06-21 were missed. Net: two missed doses, i.e., no biologic received in the 5 weeks prior to today.",
-          "date": "2026-06-29"
-        }
-      ],
-      "reasoning": "The candidates document a clear non-adherence confounder: two consecutive missed biologic doses (2026-06-07 and 2026-06-21), leaving the patient without biologic coverage for 5 weeks prior to the most recent visit (2026-06-29), at which point the worst objective and QoL measures were recorded (PASI 16.8, DLQI 17). The chart does not establish that the most recent worsening (visit 3 to visit 4) preceded the missed doses \u2014 in fact, the missed doses began on 2026-06-07, and the worsening measurements at visit 4 (2026-06-29) postdate the start of the adherence gap. No infection, steroid withdrawal, or seasonal pattern evidence appears in the candidates. Per the assembler role, the objective indices worsen and the best-case attribution is disease activity worsening; however, the non-adherence confounder is present, unexcluded, and temporally overlaps the most recent worsening interval. This is flagged for adversarial review to determine whether the confounder defeats the attribution.",
-      "rubric_ref": "5"
+      "status": "insufficient",
+      "evidence": [],
+      "reasoning": "No candidates were returned for this criterion: the provided evidence contains no documentation screening for or excluding non-adherence, intercurrent infection, steroid taper/withdrawal, or seasonal flare. Because the candidates are empty and do not speak to the criterion, the confounder question cannot be assembled from quoted evidence. The best-case attribution \u2014 that the objective worsening documented under criteria 1-3 reflects disease activity \u2014 remains unverified against the confounder classes.",
+      "rubric_ref": "5",
+      "gap": "None of the visits documents whether missed medications, an infection, a steroid taper, or a seasonal pattern was considered and ruled out as the cause of the flare."
     }
   ],
   "challenges": [],
@@ -137,7 +164,8 @@
       "criterion_id": 4,
       "attempts": [
         "current regimen adherence doses",
-        "missed doses"
+        "missed doses",
+        "medication adherence"
       ],
       "resolved_in": "visit4_derm_note"
     },
@@ -145,9 +173,10 @@
       "criterion_id": 5,
       "attempts": [
         "confounder missed doses infection steroid seasonal",
-        "missed doses"
+        "missed doses",
+        "infection steroid taper seasonal flare"
       ],
-      "resolved_in": "visit4_adherence_note"
+      "resolved_in": null
     }
   ]
 }

@@ -36,6 +36,14 @@ Rules — these are hard constraints:
    concession beats an overreaching claim.
 4. Leave unchallenged items unchanged unless a concession makes their
    reasoning inconsistent.
+3b. A challenge may carry "external_evidence" — pharmacy dispense records
+   (dates, days supplied, resource IDs) retrieved by the reviewer. Treat
+   these as GROUND TRUTH you cannot rebut from the chart: you have no
+   pharmacy access. Your only options are (a) chart evidence that the
+   worsening predates the coverage gap the dispense data shows, or (b)
+   concede the criterion. When conceding on dispense-documented
+   non-adherence, the documentation-that-would-settle-it must include
+   "reassess severity after a period of resumed, confirmed adherence".
 5. status must be exactly one of: "worsening" | "stable" | "improving" | "insufficient".
 
 Output: respond with ONLY a JSON array (no prose, no code fences) — the FULL

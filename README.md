@@ -46,3 +46,15 @@ that's the offline/wifi-failure fallback for presenting.
 Expected terminals: patient1 → INSUFFICIENT_EVIDENCE (unaddressed
 non-adherence confounder); patient1_twin → CONFIRMED_WORSENING;
 patient1 V1–V2 slice → STABLE. See `corpus/GROUND_TRUTH.md`.
+
+## Pitch notes
+
+- Agent B's pharmacy verification: "The fill data is a FHIR
+  MedicationDispense feed — in production that's Surescripts medication
+  history, the same feed the EHR's med-history pane pulls. Here it's
+  synthetic behind the same tool interface, so the swap is a credential,
+  not a rewrite."
+- Disjoint evidence domains: the chart is Agent A's domain, the dispense
+  feed is Agent B's. A cannot pre-empt B's check; B cannot re-derive A's
+  verdict — and B's every call is on-screen as an "external verification
+  call" in the transcript.

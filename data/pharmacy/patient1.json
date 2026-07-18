@@ -1,0 +1,75 @@
+{
+  "resourceType": "Bundle",
+  "type": "searchset",
+  "entry": [
+    {
+      "resource": {
+        "resourceType": "MedicationDispense",
+        "id": "MD-001",
+        "status": "completed",
+        "medicationCodeableConcept": { "text": "clobetasol propionate 0.05% ointment" },
+        "subject": { "reference": "Patient/patient1" },
+        "whenHandedOver": "2026-02-02",
+        "quantity": { "value": 60, "unit": "g" },
+        "daysSupply": { "value": 30, "unit": "days" },
+        "dosageInstruction": [
+          { "text": "apply to affected areas twice daily PRN, 2 weeks on / 1 week off" }
+        ]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationDispense",
+        "id": "MD-002",
+        "status": "completed",
+        "medicationCodeableConcept": { "text": "adalimumab 40 mg/0.8 mL prefilled syringe" },
+        "subject": { "reference": "Patient/patient1" },
+        "whenHandedOver": "2026-01-19",
+        "quantity": { "value": 2, "unit": "syringe" },
+        "daysSupply": { "value": 28, "unit": "days" },
+        "dosageInstruction": [{ "text": "40 mg SC every 2 weeks" }]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationDispense",
+        "id": "MD-003",
+        "status": "completed",
+        "medicationCodeableConcept": { "text": "adalimumab 40 mg/0.8 mL prefilled syringe" },
+        "subject": { "reference": "Patient/patient1" },
+        "whenHandedOver": "2026-02-16",
+        "quantity": { "value": 2, "unit": "syringe" },
+        "daysSupply": { "value": 28, "unit": "days" },
+        "dosageInstruction": [{ "text": "40 mg SC every 2 weeks" }]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationDispense",
+        "id": "MD-004",
+        "status": "completed",
+        "medicationCodeableConcept": { "text": "adalimumab 40 mg/0.8 mL prefilled syringe" },
+        "subject": { "reference": "Patient/patient1" },
+        "whenHandedOver": "2026-03-16",
+        "quantity": { "value": 2, "unit": "syringe" },
+        "daysSupply": { "value": 28, "unit": "days" },
+        "dosageInstruction": [{ "text": "40 mg SC every 2 weeks" }]
+      }
+    },
+    {
+      "resource": {
+        "resourceType": "MedicationDispense",
+        "id": "MD-005",
+        "status": "completed",
+        "medicationCodeableConcept": { "text": "clobetasol propionate 0.05% ointment (refill)" },
+        "subject": { "reference": "Patient/patient1" },
+        "whenHandedOver": "2026-06-15",
+        "quantity": { "value": 60, "unit": "g" },
+        "daysSupply": { "value": 30, "unit": "days" },
+        "dosageInstruction": [
+          { "text": "apply to affected areas twice daily PRN, 2 weeks on / 1 week off" }
+        ]
+      }
+    }
+  ]
+}

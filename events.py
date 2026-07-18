@@ -6,6 +6,18 @@ directly), emit() is a silent no-op — the verified pipeline is unchanged.
 
 Events land in runs/<patient_id>_events.jsonl, one JSON object per line:
   {"t": <epoch>, "actor": "A"|"B"|"sys", "type": "...", "text": "...", "data": {...}}
+
+TRANSCRIPT STYLE RULES — every emit()'s text is read aloud in a live demo by
+clinicians, not engineers:
+  1. One or two short sentences, first person ("We found…", "We're checking…"),
+     as the agent speaking in its clinical role (chart reviewer / nurse).
+  2. No engineering jargon: never "packet schema", "contract guard", "JSON",
+     "criterion_id". Say "question 5", "the chart", "the rubric".
+  3. One event per meaningful step — never one per search query or per photo.
+     Machine detail belongs in the **data kwargs and the side panels, not in
+     the text.
+  4. Model-written fields that reach the transcript (challenge reasons, gaps,
+     photo captions) follow the same rules — enforced in prompts/*.txt.
 """
 import json
 import os
@@ -26,6 +38,11 @@ def start_run(patient_id: str) -> None:
         with open(_path, "w"):
             pass  # truncate any previous stream for this patient
     emit("sys", "start", "Run started", patient_id=patient_id)
+
+
+def is_active() -> bool:
+    """True while a run's event stream is open (demo UI is watching)."""
+    return _path is not None
 
 
 def stop_run() -> None:

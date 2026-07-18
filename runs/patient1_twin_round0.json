@@ -1,7 +1,7 @@
 {
   "patient_id": "patient1_twin",
-  "round": 1,
-  "terminal_state": "CONFIRMED_WORSENING",
+  "round": 0,
+  "terminal_state": null,
   "packet": [
     {
       "criterion_id": 1,
@@ -136,9 +136,7 @@
       "rubric_ref": "5"
     }
   ],
-  "challenges": [
-    []
-  ],
+  "challenges": [],
   "search_trace": [
     {
       "criterion_id": 1,
@@ -178,15 +176,5 @@
       ],
       "resolved_in": "visit4_adherence_note"
     }
-  ],
-  "tool_trace": [
-    {
-      "agent": "B",
-      "tool": "pharmacy_lookup",
-      "patient_id": "patient1_twin",
-      "n_results": 8,
-      "round": 1
-    }
-  ],
-  "patient_message": "Hi, this is a note from your skin care team. We took a careful look at your recent visits, and even though you've been taking your medication just as prescribed, your psoriasis looks more active. We'd like to see you soon to adjust your treatment plan. Please call us or use the portal to schedule a visit. \u2014 your dermatology care team"
+  ]
 }

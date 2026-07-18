@@ -2,11 +2,11 @@
 
 **Date:** 2026-05-10
 **Author:** Marisol Vega, RN — Dermatology Clinic
-**Note type:** Nursing intake / injection teaching note
+**Note type:** Nursing intake
 **Patient:** Daniel Okafor, 34M, MRN 4471822
 
 ## Intake
-Vitals: BP 122/76, HR 71, T 36.8 C, Wt 82.4 kg. Patient roomed for scheduled dermatology follow-up. Reports skin has been "a lot worse" recently with heavy flaking and nightly itch; rates itch 7/10 at its worst. Denies fever, chills, sore throat, or recent illness.
+Vitals: BP 122/76, HR 71, T 36.8 C, Wt 82.4 kg. Patient roomed for dermatology visit moved up for worsening skin. Reports skin has been "a lot worse" recently with heavy flaking and nightly itch; rates itch 7/10 at its worst. Denies fever, chills, sore throat, or recent illness.
 
 ## Nursing Skin Observations
 While assisting patient into a gown, noted findings and flagged them for Dr. Raman:
@@ -16,11 +16,11 @@ While assisting patient into a gown, noted findings and flagged them for Dr. Ram
 
 Both findings communicated to Dr. Raman prior to her exam.
 
-## Injection Teaching
-Per provider orders, first dose of the newly prescribed subcutaneous biologic administered in clinic today. Teach-back method used: patient correctly demonstrated pen handling, site selection (abdomen, rotating sites), and disposal into sharps container provided. Written instructions and sharps container given. Patient verbalized understanding of infection warning signs and when to call the clinic. Observed 30 minutes post-injection; no local or systemic reaction. Injection site: left lower abdominal quadrant, tolerated well.
+## Medication Review
+Patient states he self-administers his biologic injections at home and manages refills through the specialty pharmacy; no injection-site concerns reported today. Sharps disposal reviewed; container adequate.
 
 ## Disposition
-Ambulated out in stable condition with follow-up instructions and phototherapy schedule card. Specialty pharmacy paperwork copies provided.
+Ambulated out in stable condition with follow-up instructions. Lab requisition completed before departure.
 
 M. Vega, RN — 2026-05-10 15:44
 

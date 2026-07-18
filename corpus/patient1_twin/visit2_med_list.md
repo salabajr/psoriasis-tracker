@@ -9,7 +9,8 @@
 
 | Medication | Dose / Route | Schedule | Status | Last Fill | Prescriber |
 |---|---|---|---|---|---|
-| Clobetasol propionate 0.05% ointment | Topical to plaques | BID, 2 wk on / 1 wk off | Active | 2026-03-02 | P. Raman, MD |
+| Adalimumab 40 mg/0.8 mL prefilled syringe | 40 mg SC | Every 2 weeks, self-administered | Active | 2026-03-16 (specialty pharmacy) | P. Raman, MD |
+| Clobetasol propionate 0.05% ointment | Topical to plaques | BID PRN, 2 wk on / 1 wk off | Active | 2026-03-02 | P. Raman, MD |
 | Cetirizine 10 mg tablet | 1 tab PO | qHS PRN itch | Active | 2026-03-16 (new) | P. Raman, MD |
 | Loratadine 10 mg tablet | 1 tab PO | Daily PRN, spring allergies | Active | 2025-04-11 | J. Whitfield, MD |
 | Fluticasone propionate 50 mcg nasal spray | 2 sprays each nostril | Daily PRN | Active | 2025-04-11 | J. Whitfield, MD |
@@ -24,9 +25,9 @@
 - Melatonin 3 mg qHS PRN
 - Hydrocortisone 1% cream — **discontinued** per patient; superseded by prescription clobetasol
 
-## Procedures / Clinic-Administered Therapy
+## Prior / Completed Therapy
 
-- Narrowband UVB phototherapy — 3x/wk in dermatology light unit; session 17 of planned course completed 2026-03-13. Dose titration per skin type III protocol.
+- Narrowband UVB phototherapy — full course completed 2025 prior to biologic initiation; not currently active.
 
 ## Allergies
 
@@ -34,8 +35,8 @@
 
 ## Reconciliation Notes
 
-- Patient verbally confirmed each item above; no discrepancies between pharmacy fill history and patient report.
-- No duplicate therapy identified. No interacting agents with phototherapy identified; counseled to report any new photosensitizing medications (e.g., doxycycline, thiazides) before light sessions.
+- Patient verbally confirmed each item above; no discrepancies between pharmacy fill history and patient report as of today's date.
+- No duplicate therapy identified. Counseled to report any new medications or planned live vaccines while on biologic therapy.
 - No changes to chronic medications since last reconciliation on 2026-02-02.
 - Next scheduled review: at next dermatology follow-up.
 
