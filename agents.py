@@ -165,11 +165,12 @@ def _call_claude(system_blocks: list, user_content: str):
     try:
         return _parse_json(text)
     except (ValueError, json.JSONDecodeError):
-        retry_content = (
-            user_content
-            + "\n\nYour previous reply was not valid JSON. Respond with ONLY the "
-            "JSON payload — no prose, no code fences."
-        )
+        nudge = ("Your previous reply was not valid JSON. Respond with ONLY the "
+                 "JSON payload — no prose, no code fences.")
+        if isinstance(user_content, str):
+            retry_content = user_content + "\n\n" + nudge
+        else:  # multimodal content blocks (vision)
+            retry_content = list(user_content) + [{"type": "text", "text": nudge}]
         return _parse_json(_go(retry_content))
 
 
@@ -198,11 +199,19 @@ def _clean_evidence(evidence, corpus_dir, allowed_pairs=None):
             continue
         if (doc_id, quote, date) in seen:
             continue
-        try:
-            if not tools_mod.verify_quote(doc_id, quote, corpus_dir):
+        if doc_id.startswith("images/"):
+            # Photo observation: not a verbatim chart quote, so verify_quote
+            # does not apply. It is legal ONLY if it exactly matches a finding
+            # Agent A generated from that image (enforced via allowed_pairs);
+            # without a candidate set to match against, it is rejected.
+            if allowed_pairs is None:
                 continue
-        except Exception:
-            continue
+        else:
+            try:
+                if not tools_mod.verify_quote(doc_id, quote, corpus_dir):
+                    continue
+            except Exception:
+                continue
         seen.add((doc_id, quote, date))
         out.append({"doc_id": doc_id, "quote": quote, "date": date})
     return out
@@ -370,11 +379,85 @@ def _search_criterion(rubric_item: dict, corpus_dir: str):
     return trace, candidates
 
 
+def _photo_findings(corpus_dir: str) -> list:
+    """Agent A examines chart photographs with one batched vision call.
+
+    Returns [{"doc_id": "images/<file>", "quote": <observation>, "date": ...}].
+    Empty when the chart has no images/ or no client is available. Findings
+    are Agent A's own labeled observations, not verbatim chart quotes; they
+    may enter the packet only as exact matches (enforced in _clean_evidence).
+    """
+    import base64
+    import glob as _glob
+
+    paths = sorted(
+        _glob.glob(os.path.join(corpus_dir, "images", "*.jpg"))
+        + _glob.glob(os.path.join(corpus_dir, "images", "*.png"))
+    )
+    if not paths:
+        return []
+    if _client is None and not os.environ.get("ANTHROPIC_API_KEY"):
+        return []
+
+    # Map visit prefixes to dates using the notes themselves.
+    visit_dates = {}
+    for md in _glob.glob(os.path.join(corpus_dir, "*.md")):
+        stem = os.path.basename(md).split("_")[0]
+        if stem in visit_dates:
+            continue
+        try:
+            with open(md, "r", encoding="utf-8") as f:
+                m = re.search(r"\b(\d{4}-\d{2}-\d{2})\b", f.read())
+            if m:
+                visit_dates[stem] = m.group(1)
+        except OSError:
+            continue
+
+    content = []
+    rels = []
+    for path in paths:
+        rel = "images/" + os.path.basename(path)
+        rels.append(rel)
+        with open(path, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
+        media = "image/png" if path.endswith(".png") else "image/jpeg"
+        content.append({"type": "text", "text": "Photograph — chart file %s:" % rel})
+        content.append({"type": "image",
+                        "source": {"type": "base64", "media_type": media,
+                                   "data": b64}})
+    content.append({"type": "text",
+                    "text": "Write one observation per photograph. "
+                            "JSON array only."})
+    try:
+        raw = _call_claude(_system_blocks("vision"), content)
+    except Exception:
+        return []
+    findings = []
+    by_file = {}
+    if isinstance(raw, list):
+        for item in raw:
+            if isinstance(item, dict):
+                by_file[str(item.get("file", ""))] = str(item.get("finding", "")).strip()
+    for rel in rels:
+        finding = by_file.get(rel, "")
+        if not finding or finding == "image not interpretable":
+            continue
+        visit = os.path.basename(rel).split("_")[0]
+        entry = {"doc_id": rel, "quote": finding,
+                 "date": visit_dates.get(visit, "")}
+        findings.append(entry)
+        events.emit("A", "photo",
+                    "\U0001F4F7 Examined %s — %s" % (rel, _trunc(finding, 160)),
+                    doc_id=rel, finding=finding)
+    return findings
+
+
 def assemble(rubric: list, corpus_dir: str) -> dict:
     """Build the round-0 run_state: search the chart, then draft the packet."""
     events.emit("A", "phase",
                 "Agent A is reading the chart and gathering evidence for "
                 "%d rubric criteria" % len(rubric))
+    photo_findings = _photo_findings(corpus_dir)
     search_trace = []
     candidates_by_id = {}
     for item in rubric:
@@ -396,10 +479,14 @@ def assemble(rubric: list, corpus_dir: str) -> dict:
                 "candidates": candidates_by_id[item["id"]],
             }
             for item in rubric
-        ]
+        ],
+        "photo_findings": photo_findings,
     }
     user_content = (
-        "Verified chart-search candidates per rubric criterion:\n"
+        "Verified chart-search candidates per rubric criterion, plus your own "
+        "photo_findings from examining the chart photographs (usable as "
+        "evidence for any relevant criterion, quoted exactly, doc_id = the "
+        "image file):\n"
         + json.dumps(user_payload, indent=2)
         + "\n\nBuild the evidence packet now. JSON array only."
     )
@@ -417,9 +504,11 @@ def assemble(rubric: list, corpus_dir: str) -> dict:
                 except (TypeError, ValueError):
                     continue
 
+    photo_pairs = {(p["doc_id"], p["quote"]) for p in photo_findings}
     packet = []
     for item in rubric:
         allowed = {(c["doc_id"], c["quote"]) for c in candidates_by_id[item["id"]]}
+        allowed |= photo_pairs
         packet.append(
             _normalize_entry(by_id.get(item["id"]), item, corpus_dir, allowed)
         )

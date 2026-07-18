@@ -368,7 +368,8 @@ $("chartbtn").onclick = () => {
 
 $("runbtn").onclick = () => startRun({
   notes_text: $("notes").value,
-  label: $("notes").dataset.label || "pasted_chart"
+  label: $("notes").dataset.label || "pasted_chart",
+  images_from: $("notes").dataset.label || ""
 });
 $("replaybtn").onclick = () => startRun({ replay: true });
 
@@ -540,9 +541,20 @@ function renderMatrix(st) {
   tb.innerHTML = "";
   (st.packet || []).forEach(e => {
     const tr = document.createElement("tr");
-    const evid = (e.evidence || []).map(ev =>
-      "<blockquote>“" + esc(ev.quote) + '”<br><span class="docref">' +
-      esc(ev.doc_id) + " · " + esc(ev.date) + "</span></blockquote>").join("");
+    const evid = (e.evidence || []).map(ev => {
+      const im = ev.doc_id && ev.doc_id.indexOf("images/") === 0
+        ? chartImages.find(i => i.file === ev.doc_id) : null;
+      const photo = im
+        ? '<img src="' + im.url + '" alt="" style="width:84px;height:64px;' +
+          'object-fit:cover;border-radius:6px;float:right;margin-left:8px;' +
+          'border:1px solid var(--line)">'
+        : "";
+      const tag = ev.doc_id && ev.doc_id.indexOf("images/") === 0
+        ? ' · <b>photo observation</b>' : "";
+      return "<blockquote>" + photo + "“" + esc(ev.quote) +
+        '”<br><span class="docref">' + esc(ev.doc_id) + " · " + esc(ev.date) +
+        tag + "</span></blockquote>";
+    }).join("");
     tr.innerHTML = "<td>" + e.criterion_id + "</td><td>" + esc(e.criterion_text) +
       "<details><summary>evidence &amp; reasoning</summary>" + evid +
       '<div style="font-size:13px;color:var(--muted)">' + esc(e.reasoning) +

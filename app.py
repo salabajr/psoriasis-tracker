@@ -192,12 +192,24 @@ def _clear_patient_artifacts(pid: str) -> None:
             p.unlink(missing_ok=True)
 
 
-def _run_live(notes, pid):
+def _run_live(notes, pid, images_from=""):
     corpus_root = Path(tempfile.mkdtemp(prefix="demo_corpus_"))
     pdir = corpus_root / pid
     pdir.mkdir()
     for fname, content in notes:
         (pdir / fname).write_text(content, encoding="utf-8")
+    # Carry the source preset's photographs so Agent A's vision pass sees them.
+    src_patient = {"patient1": "patient1", "patient1_twin": "patient1_twin",
+                   "v1_v2_slice": "patient1"}.get(images_from)
+    if src_patient:
+        src = CORPUS_DIR / src_patient / "images"
+        if src.is_dir():
+            (pdir / "images").mkdir()
+            note_visits = {fname.split("_")[0] for fname, _ in notes}
+            for img in sorted(src.glob("*")):
+                if img.suffix.lower() in (".jpg", ".jpeg", ".png") and \
+                        img.stem.split("_")[0] in note_visits:
+                    shutil.copy(img, pdir / "images" / img.name)
     try:
         from orchestrator import run
         run(str(pdir))
@@ -302,6 +314,7 @@ def _run_replay():
 class RunRequest(BaseModel):
     notes_text: str = ""
     label: str = ""
+    images_from: str = ""
     replay: bool = False
 
 
@@ -332,7 +345,8 @@ def post_run(req: RunRequest):
             pid = re.sub(r"[^\w\-]", "_", req.label.strip()) or "pasted_chart"
             _clear_patient_artifacts(pid)
             (RUNS_DIR / ("%s_events.jsonl" % pid)).write_text("", encoding="utf-8")
-            t = threading.Thread(target=_run_live, args=(notes, pid), daemon=True)
+            t = threading.Thread(target=_run_live,
+                                 args=(notes, pid, req.images_from), daemon=True)
         _active["thread"] = t
         _active["patient_id"] = pid
         t.start()

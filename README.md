@@ -2,8 +2,10 @@
 
 Two-agent adversarial disease-progression monitor for plaque psoriasis.
 
-**Agent A (assembler)** searches a synthetic patient chart, builds an
-evidence packet against a 5-item rubric (every quote verbatim-verified).
+**Agent A (assembler)** searches a synthetic patient chart — clinical notes
+plus photographs, which A examines with a multimodal vision pass — and builds
+an evidence packet against a 5-item rubric (note quotes verbatim-verified;
+photo observations labeled and exact-match guarded).
 **Agent B (reviewer)** sees only the packet + rubric — no chart — and
 challenges unsupported attributions. The orchestrator runs up to 3
 challenge/repair rounds and emits a terminal state:
