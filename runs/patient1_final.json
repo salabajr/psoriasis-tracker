@@ -20,16 +20,16 @@
         },
         {
           "doc_id": "visit3_derm_note",
-          "quote": "PASI 14.2, BSA 15%, IGA 3. This is a marked change from 2026-03-16 (PASI 6.3) and baseline 2026-02-02 (PASI 6.1).",
+          "quote": "Severity today: PASI 14.2, BSA 15%, IGA 3.",
           "date": "2026-05-10"
         },
         {
           "doc_id": "visit4_derm_note",
-          "quote": "PASI 16.8, BSA 18%, IGA 3. DLQI 17. Compared with 2026-05-10 (PASI 14.2, DLQI 15), objective and quality-of-life measures are both worse.",
+          "quote": "PASI 16.8, BSA 18%, IGA 3. DLQI 17.",
           "date": "2026-06-29"
         }
       ],
-      "reasoning": "Across four dated encounters, PASI rose from 6.1 (2026-02-02) to 6.3 (2026-03-16, essentially flat), then sharply to 14.2 (2026-05-10) and further to 16.8 (2026-06-29). This represents a PASI increase of approximately 10.7 points from baseline to the most recent visit, far exceeding the rubric threshold of \u22652 points. BSA likewise increased from 8% to 18%, and IGA stepped up from 2 to 3. The directional worsening is consistent and documented with verbatim quotes across all four visits.",
+      "reasoning": "Across four dated encounters, PASI rose from 6.1 (2026-02-02) to 6.3 (2026-03-16, essentially flat), then jumped to 14.2 (2026-05-10) and further to 16.8 (2026-06-29). This represents a PASI increase of approximately 10.7 points from baseline to the most recent visit, far exceeding the rubric threshold of \u22652 points. BSA similarly increased from 8% to 18%, and IGA stepped up from 2 to 3 between visit 2 and visit 3. All three objective measures show a clinically meaningful worsening trend across at least two dated encounters.",
       "rubric_ref": "1"
     },
     {
@@ -43,7 +43,7 @@
           "date": "2026-05-10"
         }
       ],
-      "reasoning": "The rubric specifies that absence of mention is not evidence of absence. New nail involvement \u2014 onycholysis on two fingernails with distal separation and yellowish discoloration \u2014 is documented for the first time at the 2026-05-10 visit, representing a new symptom domain not present in earlier notes. This constitutes a directional worsening in symptom trajectory. No candidates were provided documenting nail or joint findings at earlier visits, consistent with these being new findings. The single candidate directly evidences new nail involvement.",
+      "reasoning": "The nursing note from 2026-05-10 documents new nail involvement \u2014 onycholysis on two fingernails with distal separation and yellowish discoloration \u2014 that was not mentioned in earlier visit notes (visits 1 and 2). Per the rubric, absence of mention in earlier notes is not evidence of absence, but the appearance of documented nail findings at visit 3 represents a new symptom domain being captured. This constitutes a directional change (worsening) in symptom trajectory. No joint involvement or scalp findings are documented in the candidates, but the nail findings alone support a worsening trajectory.",
       "rubric_ref": "2"
     },
     {
@@ -65,9 +65,14 @@
           "doc_id": "visit3_derm_note",
           "quote": "DLQI 15 today (was 8), with high scores on symptoms, feelings, and work domains.",
           "date": "2026-05-10"
+        },
+        {
+          "doc_id": "visit4_derm_note",
+          "quote": "PASI 16.8, BSA 18%, IGA 3. DLQI 17. Compared with 2026-05-10 (PASI 14.2, DLQI 15), objective and quality-of-life measures are both worse.",
+          "date": "2026-06-29"
         }
       ],
-      "reasoning": "DLQI scores across four visits: 7 (2026-02-02), 8 (2026-03-16), 15 (2026-05-10), and 17 (2026-06-29). The increase from 8 to 15 between visits 2 and 3 alone represents a 7-point rise, exceeding the rubric threshold of \u22654 points. The subsequent rise to 17 by visit 4 confirms a sustained upward trend. The total increase from baseline (7) to most recent visit (17) is 10 points. The directional worsening is unambiguous and documented with verbatim quotes across all four visits.",
+      "reasoning": "DLQI scores across four dated encounters: 7 (2026-02-02), 8 (2026-03-16), 15 (2026-05-10), and 17 (2026-06-29). The increase from 8 to 15 between visits 2 and 3 alone represents a 7-point rise, exceeding the rubric threshold of \u22654 points. The further increase to 17 by visit 4 confirms a sustained upward trend. The visit 4 note explicitly states that quality-of-life measures are worse compared to visit 3. This is a clear, sustained worsening trajectory across all four encounters.",
       "rubric_ref": "3"
     },
     {
@@ -86,7 +91,7 @@
           "date": "2026-06-29"
         }
       ],
-      "reasoning": "The adherence note documents that two consecutive biologic doses (due 2026-06-07 and 2026-06-21) were missed, resulting in no biologic received in the 5 weeks prior to the most recent visit. The rubric specifies that missed doses or therapy gaps make adequacy unassessable. Because the current regimen was not taken as scheduled during the period in which the most significant worsening was observed, treatment-response adequacy cannot be established. The chart does not provide sufficient information about the full dosing history prior to the missed doses, nor does it document the regimen's start date or complete schedule, further limiting assessment.",
+      "reasoning": "The adherence note documents that two consecutive biologic doses (due 2026-06-07 and 2026-06-21) were missed, resulting in no biologic received in the 5 weeks prior to the most recent visit (2026-06-29). The rubric specifies that missed doses or therapy gaps make adequacy unassessable. Because the most recent worsening interval (visit 3 to visit 4) coincides with a documented gap in biologic therapy, the current regimen cannot be assessed as having received an adequate, adherent trial. Treatment-response adequacy is therefore insufficient to confirm.",
       "rubric_ref": "4"
     },
     {
@@ -100,22 +105,12 @@
           "date": "2026-06-29"
         },
         {
-          "doc_id": "visit3_derm_note",
-          "quote": "first dose administered today in clinic after standard loading discussion",
-          "date": "2026-05-10"
-        },
-        {
           "doc_id": "visit4_adherence_note",
-          "quote": "Dose 3: due 2026-06-07 \u2014 not taken.",
-          "date": "2026-06-29"
-        },
-        {
-          "doc_id": "visit4_derm_note",
-          "quote": "Plaques larger and thicker across trunk and lower extremities; nightly itch disrupting sleep most nights.",
+          "quote": "Dose 1: 2026-05-10 \u2014 administered in clinic (documented).\n- Dose 2: 2026-05-24 \u2014 self-administered at home, confirmed in patient log and by used-pen count.\n- Dose 3: due 2026-06-07 \u2014 not taken.",
           "date": "2026-06-29"
         }
       ],
-      "reasoning": "Concession: the non-adherence confounder is present and unaddressed, and this criterion cannot pass. The chart documents that the first biologic dose was administered on 2026-05-10 and that doses 3 and 4 (due 2026-06-07 and 2026-06-21) were missed. The sharpest worsening recorded at visit 4 (PASI 14.2\u219216.8, DLQI 15\u219217, plaques larger and thicker) falls entirely within the period of non-adherence. The new evidence retrieved does not contain any dated encounter between 2026-05-10 and 2026-06-07 showing continued deterioration prior to the first missed dose, nor does any chart document explicitly exclude non-adherence as a contributor to the worsening trend. Because the rubric requires that a confounder be either excluded or shown to postdate the worsening, and neither condition is met, disease attribution cannot be established. To settle this question, the chart would need: (a) a dated encounter between 2026-05-10 and 2026-06-07 documenting objective worsening (PASI/BSA/IGA increase) before the first missed dose, or (b) explicit clinician documentation ruling out non-adherence as a driver of the observed deterioration.",
+      "reasoning": "Concession: The non-adherence confounder is present and unaddressed for the most recent worsening interval. The adherence note confirms that the first missed dose was due 2026-06-07, and the most recent worsening measurements (PASI 16.8, BSA 18%, IGA 3, DLQI 17) were recorded on 2026-06-29 \u2014 five weeks after the adherence gap began. The new evidence retrieved (the detailed dose log) confirms the same adherence gap and does not contain any measurement or patient-reported symptom escalation dated between 2026-05-10 and 2026-06-07 that would establish that the step-up in severity had already begun before the first missed dose. No other chart document provides a mid-interval objective reading or a clinician note excluding non-adherence as a contributor (e.g., drug-level data or a clinical trajectory inconsistent with a biologic gap). Per the rubric, a confounder is addressed only if the chart excludes it or establishes that worsening preceded it, and that precedence must hold for the most recent worsening interval specifically. Neither condition is met here. This criterion therefore cannot pass. To settle the question, the chart would need: (a) an objective measurement (PASI/BSA/IGA) or a clinician- or patient-reported symptom escalation dated between 2026-05-10 and 2026-06-07 documenting that the severity step-up had already begun before the first missed dose, or (b) a clinician note explicitly excluding non-adherence as a contributor \u2014 for example, by confirming that drug levels or the clinical trajectory were inconsistent with a biologic gap of this duration.",
       "rubric_ref": "5"
     }
   ],
@@ -123,9 +118,9 @@
     [
       {
         "criterion_id": 5,
-        "challenge_reason": "The packet's own evidence (visit4_adherence_note, 2026-06-29) documents that two consecutive biologic doses were missed and no biologic was received in the 5 weeks prior to the most recent visit \u2014 the period during which the sharpest worsening (PASI 14.2\u219216.8, DLQI 15\u219217) is recorded. The packet acknowledges this confounder but still assigns status 'worsening' and attributes it to disease activity. The rubric requires that a confounder be either excluded or shown to postdate the worsening before disease attribution is permissible. The packet contains no evidence doing either: it does not show that the PASI/DLQI rise began before the missed doses (2026-06-07 and 2026-06-21), nor does it exclude non-adherence as a driver of the visit-4 deterioration. The packet's own criterion-4 item correctly concedes 'insufficient' for exactly this reason, creating a direct internal inconsistency: criterion 4 acknowledges the gap defeats adequacy assessment, yet criterion 5 proceeds to attribute worsening to disease over the same unresolved gap.",
-        "rubric_quote": "A confounder is 'addressed' only if the chart either excludes it or establishes that worsening preceded it. If any confounder is present and unaddressed, this item cannot pass.",
-        "what_would_satisfy": "Evidence showing that the objective worsening (PASI rise, BSA increase, IGA step-up) was already documented at or before the first missed dose date (2026-06-07) \u2014 i.e., a dated encounter between 2026-05-10 and 2026-06-07 showing continued deterioration \u2014 or chart documentation explicitly excluding non-adherence as a contributor to the worsening trend."
+        "challenge_reason": "The packet's own evidence shows that the most recent worsening interval (visit 3, 2026-05-10 \u2192 visit 4, 2026-06-29) postdates the start of the non-adherence confounder (missed doses beginning 2026-06-07). The visit 4 measurements (PASI 16.8, BSA 18%, IGA 3, DLQI 17) were recorded on 2026-06-29, after five weeks without biologic coverage. The packet does not contain any evidence dating the onset of the latest deterioration (the step-up from visit 3 to visit 4 values) to before 2026-06-07. The criterion 5 item nevertheless assigns status 'worsening' rather than conceding that the confounder is unaddressed for the most recent interval \u2014 an internal inconsistency, because the packet's own adherence note establishes the confounder and the packet contains no evidence excluding it or establishing precedence for the latest worsening.",
+        "rubric_quote": "A confounder is 'addressed' only if the chart either excludes it or establishes that worsening preceded it. Precedence must hold for the MOST RECENT worsening interval: when the latest measurements or symptom reports postdate an unexcluded confounder, the chart must date the onset of that latest deterioration before the confounder began \u2014 worsening documented in an earlier interval does not address a confounder that overlaps the latest one. If any confounder is present and unaddressed, this item cannot pass.",
+        "what_would_satisfy": "A chart note or objective measurement dated between 2026-05-10 and 2026-06-07 (i.e., before the first missed dose) documenting that the step-up in severity had already begun \u2014 for example, a mid-interval PASI/BSA/IGA reading or a patient-reported symptom escalation with a date prior to 2026-06-07 \u2014 would establish that the latest worsening preceded the adherence gap. Alternatively, a note explicitly excluding non-adherence as a contributor (e.g., confirming that drug levels or clinical trajectory were inconsistent with a biologic gap) would address the confounder."
       }
     ],
     []
@@ -169,5 +164,6 @@
       ],
       "resolved_in": "visit4_adherence_note"
     }
-  ]
+  ],
+  "patient_message": "Hi! We noticed your psoriasis has been more active lately. Our records show two doses of your biologic were missed in June, which may be affecting how your skin looks right now. Please restart your medication as prescribed and let us know roughly when the flare began \u2014 we're here to help. \u2014 your dermatology care team"
 }

@@ -72,11 +72,24 @@ def _persist_final(run_state: dict) -> None:
     _persist(run_state, "%s_final.json" % run_state["patient_id"])
 
 
-def run(patient_dir: str, assemble=None, review=None, repair=None) -> dict:
+def _maybe_notify(run_state: dict, notify) -> None:
+    """Agent B as communicator: patient-facing SMS on a decisive verdict."""
+    if notify is None:
+        return
+    try:
+        message = notify(run_state)
+    except Exception:
+        return
+    if message:
+        run_state["patient_message"] = message
+        events.emit("B", "sms", message, terminal=run_state["terminal_state"])
+
+
+def run(patient_dir: str, assemble=None, review=None, repair=None, notify=None) -> dict:
     """Run the adversarial loop for one patient. Returns the final run_state.
 
-    assemble/review/repair are injectable for testing; by default they resolve
-    lazily from agents.py so importing this module never imports agents.
+    assemble/review/repair/notify are injectable for testing; by default they
+    resolve lazily from agents.py so importing this module never imports agents.
     """
     if assemble is None or review is None or repair is None:
         import agents  # deferred: tests inject stubs and never touch agents.py
@@ -84,6 +97,7 @@ def run(patient_dir: str, assemble=None, review=None, repair=None) -> dict:
         assemble = assemble or agents.assemble
         review = review or agents.review
         repair = repair or agents.repair
+        notify = notify or getattr(agents, "notify", None)
 
     rubric = _load_rubric()
     patient_id = os.path.basename(os.path.normpath(patient_dir))
@@ -111,10 +125,11 @@ def run(patient_dir: str, assemble=None, review=None, repair=None) -> dict:
             if not challenges:
                 # B stands down: terminal NOW, regardless of round count.
                 run_state["terminal_state"] = _compute_terminal(run_state["packet"])
-                _persist_round(run_state)
-                _persist_final(run_state)
                 events.emit("sys", "terminal", run_state["terminal_state"],
                             terminal=run_state["terminal_state"], round=round_num)
+                _maybe_notify(run_state, notify)
+                _persist_round(run_state)
+                _persist_final(run_state)
                 return run_state
 
             run_state["packet"] = repair(run_state["packet"], challenges, patient_dir)
@@ -144,9 +159,10 @@ def run(patient_dir: str, assemble=None, review=None, repair=None) -> dict:
 
         # Round cap reached with B still challenging: terminal on current packet.
         run_state["terminal_state"] = _compute_terminal(run_state["packet"])
-        _persist_final(run_state)
         events.emit("sys", "terminal", run_state["terminal_state"],
                     terminal=run_state["terminal_state"], round=run_state["round"])
+        _maybe_notify(run_state, notify)
+        _persist_final(run_state)
         return run_state
     finally:
         events.stop_run()

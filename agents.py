@@ -812,3 +812,48 @@ def repair(packet: list, challenges: list, corpus_dir: str) -> list:
                 )
         patched.append(entry)
     return patched
+
+
+# ---------------------------------------------------------------------------
+# NOTIFY — Agent B as communicator (post-verdict patient message)
+# ---------------------------------------------------------------------------
+
+def notify(run_state: dict) -> str:
+    """Agent B drafts a patient-facing SMS about the verdict.
+
+    Returns "" (skipped) for STABLE / in-progress states, or when no client
+    is available (offline unit tests).
+    """
+    terminal = (run_state or {}).get("terminal_state")
+    if terminal not in ("CONFIRMED_WORSENING", "INSUFFICIENT_EVIDENCE"):
+        return ""
+    if _client is None and not os.environ.get("ANTHROPIC_API_KEY"):
+        return ""
+    rubric_path = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "rubric.json"
+    )
+    with open(rubric_path, "r") as f:
+        rubric = json.load(f)
+    events.emit("B", "phase", "Agent B is drafting a message to the patient…")
+    summary = [
+        {
+            "criterion_id": e.get("criterion_id"),
+            "status": e.get("status"),
+            "reasoning": str(e.get("reasoning", ""))[:280],
+        }
+        for e in run_state.get("packet", [])
+    ]
+    system_blocks = _system_blocks("notify", rubric_json=json.dumps(rubric, indent=2))
+    user_content = (
+        "Verdict and packet summary:\n"
+        + json.dumps({"terminal_state": terminal, "packet_summary": summary},
+                     indent=2)
+        + "\n\nDraft the SMS now. JSON object only."
+    )
+    try:
+        raw = _call_claude(system_blocks, user_content)
+    except (ValueError, json.JSONDecodeError):
+        return ""
+    if isinstance(raw, dict):
+        return str(raw.get("message", "")).strip()[:600]
+    return ""

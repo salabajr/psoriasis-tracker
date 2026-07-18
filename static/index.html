@@ -119,6 +119,35 @@
   .tracechip.hit { background: #e8f5ee; color: var(--good); font-weight: 700; }
   .arrow { color: var(--muted); margin: 0 2px; }
   .maincol { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+  /* ---- patient SMS popup ---- */
+  #smsoverlay { display: none; position: fixed; inset: 0; z-index: 50;
+                background: rgba(15, 23, 32, 0.55); align-items: center;
+                justify-content: center; }
+  #smsoverlay.show { display: flex; }
+  .phone { width: 340px; background: #0b0d10; border-radius: 38px;
+           padding: 14px 12px 18px; box-shadow: 0 24px 70px rgba(0,0,0,0.45);
+           animation: pop 0.35s cubic-bezier(0.2, 1.4, 0.4, 1); }
+  @keyframes pop { from { transform: translateY(30px) scale(0.92); opacity: 0; }
+                   to { transform: none; opacity: 1; } }
+  .screen { background: #f4f5f7; border-radius: 26px; padding: 0 0 18px;
+            overflow: hidden; }
+  .phonehdr { background: #e9ebee; padding: 14px 16px 10px; text-align: center;
+              border-bottom: 1px solid #dcdfe3; }
+  .phonehdr .avatar { width: 40px; height: 40px; border-radius: 50%;
+                      background: var(--accent); color: #fff; font-weight: 700;
+                      display: inline-flex; align-items: center;
+                      justify-content: center; font-size: 15px; }
+  .phonehdr .from { font-size: 12.5px; font-weight: 600; margin-top: 5px; }
+  .phonehdr .num { font-size: 10.5px; color: var(--muted); }
+  .bubblewrap { padding: 16px 14px 4px; }
+  .smstime { text-align: center; font-size: 10.5px; color: var(--muted);
+             margin-bottom: 8px; }
+  .bubble { background: #e2e4e8; color: #111; border-radius: 18px;
+            border-bottom-left-radius: 5px; padding: 10px 14px;
+            font-size: 14px; line-height: 1.45; max-width: 92%; }
+  .smsclose { display: block; margin: 14px auto 0; }
+  .smsbtn { margin-top: 10px; }
 </style>
 </head>
 <body>
@@ -162,6 +191,8 @@
       <div class="headline" id="v-head"></div>
       <div class="explain" id="v-explain"></div>
       <div class="settle" id="v-settle" style="display:none"></div>
+      <button class="smsbtn" id="v-sms" style="display:none"
+              onclick="openSms()">&#128241; View message sent to patient</button>
     </div>
 
     <div class="card">
@@ -183,11 +214,35 @@
   </div>
 </div>
 
+<div id="smsoverlay" onclick="if (event.target === this) closeSms()">
+  <div>
+    <div class="phone"><div class="screen">
+      <div class="phonehdr">
+        <span class="avatar">Dr</span>
+        <div class="from">Dermatology Care Team</div>
+        <div class="num">+1 (555) 010-3782 &middot; Text Message</div>
+      </div>
+      <div class="bubblewrap">
+        <div class="smstime">Today</div>
+        <div class="bubble" id="smsbody"></div>
+      </div>
+    </div></div>
+    <button class="smsclose" onclick="closeSms()">Close</button>
+  </div>
+</div>
+
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
 let cursor = 0, activePid = null, presets = null, terminalSeen = null;
-let progress = 0, ticks = 0;
+let progress = 0, ticks = 0, smsText = "";
+
+function openSms() {
+  if (!smsText) return;
+  $("smsbody").textContent = smsText;
+  $("smsoverlay").classList.add("show");
+}
+function closeSms() { $("smsoverlay").classList.remove("show"); }
 
 fetch("/presets").then(r => r.json()).then(p => { presets = p; });
 $("p1").onclick = () => setPreset("patient1", "patient1");
@@ -262,6 +317,18 @@ function addEvent(e) {
   if (e.type === "error") {
     $("runerr").textContent = e.text;
     $("runbtn").disabled = false; $("replaybtn").disabled = false;
+    return;
+  }
+  if (e.type === "sms") {
+    smsText = e.text;
+    const div = document.createElement("div");
+    div.className = "evt B";
+    div.innerHTML = '<div class="who">Agent B — communicator</div>' +
+      "\u{1F4F1} Text message sent to the patient. " +
+      '<a href="#" onclick="openSms(); return false;">View message</a>';
+    feed.appendChild(div);
+    autoscroll();
+    setTimeout(openSms, 900);
     return;
   }
 
@@ -348,6 +415,12 @@ function renderVerdict(st) {
     $("v-settle").style.display = "";
     $("v-settle").innerHTML = "<b>What would settle it</b>" + esc(s);
   } else { $("v-settle").style.display = "none"; }
+  if (st.patient_message) {
+    smsText = st.patient_message;
+    $("v-sms").style.display = "";
+  } else {
+    $("v-sms").style.display = "none";
+  }
 }
 
 function renderMatrix(st) {

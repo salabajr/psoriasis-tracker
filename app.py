@@ -276,6 +276,10 @@ def _run_replay():
             json.dumps(out, indent=2), encoding="utf-8")
         events_mod.emit("sys", "terminal", fin["terminal_state"],
                         terminal=fin["terminal_state"], round=fin["round"])
+        if fin.get("patient_message"):
+            time.sleep(1.5)
+            events_mod.emit("B", "sms", fin["patient_message"],
+                            terminal=fin["terminal_state"])
     except Exception as exc:
         _active["error"] = "replay failed: %s" % exc
         events_mod.emit("sys", "error", _active["error"])
