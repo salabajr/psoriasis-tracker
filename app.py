@@ -136,22 +136,34 @@ def get_events(after: int = 0):
                          "error": _active["error"]})
 
 
-def _preset_text(patient: str, through: str = None) -> str:
+def _preset(patient: str, through: str = None) -> dict:
     pdir = CORPUS_DIR / patient
     blocks = []
     for f in sorted(pdir.glob("*.md")):
         if through and f.stem.split("_")[0] > through:
             continue
         blocks.append("=== %s ===\n%s" % (f.name, f.read_text(encoding="utf-8").strip()))
-    return "\n\n".join(blocks)
+    images = []
+    for img in sorted((pdir / "images").glob("*.jpg")):
+        visit = img.stem.split("_")[0]
+        if through and visit > through:
+            continue
+        site = img.stem.split("_", 1)[1] if "_" in img.stem else img.stem
+        images.append({
+            "file": "images/%s" % img.name,
+            "visit": visit,
+            "label": "%s — %s" % (visit.replace("visit", "Visit "), site),
+            "url": "/corpus/%s/images/%s" % (patient, img.name),
+        })
+    return {"text": "\n\n".join(blocks), "images": images}
 
 
 @app.get("/presets")
 def get_presets():
     return JSONResponse({
-        "patient1": _preset_text("patient1"),
-        "patient1_twin": _preset_text("patient1_twin"),
-        "v1_v2_slice": _preset_text("patient1", through="visit2"),
+        "patient1": _preset("patient1"),
+        "patient1_twin": _preset("patient1_twin"),
+        "v1_v2_slice": _preset("patient1", through="visit2"),
     })
 
 
@@ -333,3 +345,4 @@ def index():
 
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount("/corpus", StaticFiles(directory=CORPUS_DIR), name="corpus")

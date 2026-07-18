@@ -23,3 +23,7 @@ Per provider orders, first dose of the newly prescribed subcutaneous biologic ad
 Ambulated out in stable condition with follow-up instructions and phototherapy schedule card. Specialty pharmacy paperwork copies provided.
 
 M. Vega, RN — 2026-05-10 15:44
+
+## Clinical Photographs
+- images/visit3_scalp.jpg — posterior hairline
+- images/visit3_nails.jpg — affected fingernail, close-up

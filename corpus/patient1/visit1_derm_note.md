@@ -28,3 +28,6 @@ Chronic plaque psoriasis, moderate. Baseline severity scoring today: PASI 6.1, B
 5. Return to clinic in 6 weeks to reassess PASI/BSA/IGA and DLQI; sooner for any pustulation, fevers, or rapidly spreading lesions.
 
 Electronically signed: Priya Raman, MD — 2026-02-02 16:42
+
+## Clinical Photographs
+- images/visit1_arm.jpg — right elbow, extensor surface

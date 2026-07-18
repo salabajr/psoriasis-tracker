@@ -120,6 +120,39 @@
   .arrow { color: var(--muted); margin: 0 2px; }
   .maincol { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
+  /* ---- chart photos ---- */
+  #photostrip { display: none; margin-top: 10px; }
+  #photostrip.show { display: block; }
+  #photostrip .strip { display: flex; gap: 8px; flex-wrap: wrap; }
+  .thumb { width: 74px; cursor: pointer; text-align: center; }
+  .thumb img { width: 74px; height: 56px; object-fit: cover; border-radius: 6px;
+               border: 1px solid var(--line); display: block; }
+  .thumb .cap { font: 9.5px var(--mono); color: var(--muted); margin-top: 2px;
+                white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #chartbtn { width: 100%; margin-top: 8px; }
+
+  /* ---- chart / image overlays ---- */
+  .overlay { display: none; position: fixed; inset: 0; z-index: 60;
+             background: rgba(15, 23, 32, 0.6); align-items: center;
+             justify-content: center; }
+  .overlay.show { display: flex; }
+  #imgbox img { max-width: 80vw; max-height: 78vh; border-radius: 10px;
+                box-shadow: 0 24px 70px rgba(0,0,0,0.5); display: block; }
+  #imgbox .cap { color: #fff; text-align: center; font-size: 13px; margin-top: 10px; }
+  #chartdoc { background: var(--bg); width: min(860px, 92vw); max-height: 86vh;
+              overflow-y: auto; border-radius: 12px; padding: 22px; }
+  #chartdoc h3 { margin: 0 0 4px; font-size: 16px; }
+  #chartdoc .chartsub { color: var(--muted); font-size: 12.5px; margin-bottom: 14px; }
+  .docnote { background: #fff; border: 1px solid var(--line); border-radius: 8px;
+             padding: 14px 18px; margin-bottom: 14px; }
+  .docnote .fname { font: 700 12px var(--mono); color: var(--accent);
+                    margin-bottom: 8px; }
+  .docnote pre { margin: 0; white-space: pre-wrap; font: 12px/1.55 var(--mono);
+                 color: var(--ink); }
+  .docnote .notephotos { display: flex; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+  .docnote .notephotos .thumb { width: 110px; }
+  .docnote .notephotos img { width: 110px; height: 84px; }
+
   /* ---- patient SMS popup ---- */
   #smsoverlay { display: none; position: fixed; inset: 0; z-index: 50;
                 background: rgba(15, 23, 32, 0.55); align-items: center;
@@ -168,6 +201,11 @@
       </div>
       <textarea id="notes" spellcheck="false"
         placeholder="Paste clinical notes here. Separate notes with lines like:&#10;=== visit1_derm_note.md ===&#10;...note text..."></textarea>
+      <div id="photostrip">
+        <h2 style="margin-top:4px">Chart photographs</h2>
+        <div class="strip" id="photolist"></div>
+      </div>
+      <button id="chartbtn">&#128196; View chart as document</button>
       <button id="runbtn" class="primary">&#9654;&#xFE0E; Run adversarial review</button>
       <div class="presets" style="margin-top:8px">
         <button id="replaybtn" style="flex:1">&#8634; Replay cached demo run</button>
@@ -214,6 +252,21 @@
   </div>
 </div>
 
+<div class="overlay" id="imgoverlay" onclick="this.classList.remove('show')">
+  <div id="imgbox"><img id="imgfull" alt=""><div class="cap" id="imgcap"></div></div>
+</div>
+
+<div class="overlay" id="chartoverlay" onclick="if (event.target === this) this.classList.remove('show')">
+  <div id="chartdoc">
+    <h3>Chart input — what Agent A receives</h3>
+    <div class="chartsub">Clinical notes (searched as text) with the photographs
+      filed to the chart. Every quote in the evidence packet must be a verbatim
+      substring of these notes.</div>
+    <div id="chartnotes"></div>
+    <button onclick="$('chartoverlay').classList.remove('show')">Close</button>
+  </div>
+</div>
+
 <div id="smsoverlay" onclick="if (event.target === this) closeSms()">
   <div>
     <div class="phone"><div class="screen">
@@ -244,15 +297,74 @@ function openSms() {
 }
 function closeSms() { $("smsoverlay").classList.remove("show"); }
 
-fetch("/presets").then(r => r.json()).then(p => { presets = p; });
+let chartImages = [];
+fetch("/presets").then(r => r.json()).then(p => {
+  presets = p;
+  if (location.hash === "#chart") {  // deep link: preload patient1 chart view
+    setPreset("patient1", "patient1");
+    $("chartbtn").click();
+  }
+});
 $("p1").onclick = () => setPreset("patient1", "patient1");
 $("p2").onclick = () => setPreset("patient1_twin", "patient1_twin");
 $("p3").onclick = () => setPreset("v1_v2_slice", "v1_v2_slice");
 function setPreset(key, label) {
   if (!presets) return;
-  $("notes").value = presets[key];
+  $("notes").value = presets[key].text;
   $("notes").dataset.label = label;
+  chartImages = presets[key].images || [];
+  renderPhotoStrip();
 }
+
+function renderPhotoStrip() {
+  const strip = $("photolist");
+  strip.innerHTML = "";
+  $("photostrip").classList.toggle("show", chartImages.length > 0);
+  chartImages.forEach(im => {
+    const d = document.createElement("div");
+    d.className = "thumb";
+    d.innerHTML = '<img src="' + im.url + '" alt="">' +
+                  '<div class="cap">' + esc(im.label) + "</div>";
+    d.onclick = () => openImage(im);
+    strip.appendChild(d);
+  });
+}
+
+function openImage(im) {
+  $("imgfull").src = im.url;
+  $("imgcap").textContent = im.label + "  ·  " + im.file;
+  $("imgoverlay").classList.add("show");
+}
+
+$("chartbtn").onclick = () => {
+  const box = $("chartnotes");
+  box.innerHTML = "";
+  const text = $("notes").value || "";
+  const parts = text.split(/^===\s*(.+?)\s*===\s*$/m);
+  // parts = ["", fname1, body1, fname2, body2, ...]
+  if (parts.length < 3) {
+    box.innerHTML = '<div class="docnote"><pre>' + esc(text || "(no chart pasted yet — pick a preset)") + "</pre></div>";
+  }
+  for (let i = 1; i + 1 < parts.length + 1 && parts.length >= 3; i += 2) {
+    const fname = parts[i], body = parts[i + 1] || "";
+    if (fname === undefined) break;
+    const visit = fname.split("_")[0];
+    const photos = chartImages.filter(im =>
+      im.visit === visit && body.indexOf(im.file) >= 0);
+    const d = document.createElement("div");
+    d.className = "docnote";
+    let html = '<div class="fname">' + esc(fname) + "</div><pre>" + esc(body.trim()) + "</pre>";
+    if (photos.length) {
+      html += '<div class="notephotos">' + photos.map(im =>
+        '<div class="thumb" onclick=\'openImage(' + JSON.stringify(im) + ')\'>' +
+        '<img src="' + im.url + '" alt=""><div class="cap">' + esc(im.label) +
+        "</div></div>").join("") + "</div>";
+    }
+    d.innerHTML = html;
+    box.appendChild(d);
+  }
+  $("chartoverlay").classList.add("show");
+};
 
 $("runbtn").onclick = () => startRun({
   notes_text: $("notes").value,

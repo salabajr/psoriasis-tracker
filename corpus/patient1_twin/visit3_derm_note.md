@@ -32,3 +32,6 @@ Chronic plaque psoriasis with significant objective progression on an adequate c
 5. Return to clinic in 6-8 weeks to reassess PASI/BSA/IGA and DLQI on biologic therapy. Repeat CRP/ESR at next visit.
 
 Electronically signed: Priya Raman, MD — 2026-05-10 15:27
+
+## Clinical Photographs
+- images/visit3_arm.jpg — right elbow, extensor surface

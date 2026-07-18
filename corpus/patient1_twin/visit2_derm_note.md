@@ -24,3 +24,6 @@ Chronic plaque psoriasis, moderate — stable at 6 weeks into combined topical +
 4. Return in 6-8 weeks for reassessment of PASI/BSA/IGA and DLQI. Discussed that if there is no meaningful improvement after a full phototherapy course, we would discuss systemic options at that time.
 
 Electronically signed: Priya Raman, MD — 2026-03-16 11:08
+
+## Clinical Photographs
+- images/visit2_arm.jpg — right elbow, extensor surface (appearance similar to prior)
